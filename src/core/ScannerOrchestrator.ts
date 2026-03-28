@@ -3,7 +3,7 @@ import { isRetryableRpcError } from '../errors/RpcError.js';
 import { FeeEventModel } from '../models/FeeEvent.js';
 import type { ChainScanner } from '../scanners/types.js';
 import { SyncStateManager } from './SyncStateManager.js';
-import { isShutdownRequested } from './helpers/gracefulShutdown.js';
+import { initShutdownHandler, isShutdownRequested } from './helpers/gracefulShutdown.js';
 import { withRetry } from './helpers/retry.js';
 import { sleep } from './helpers/sleep.js';
 
@@ -117,6 +117,8 @@ export async function runAllScanners(
 	pollIntervalMs: number,
 	logger: pino.Logger,
 ): Promise<void> {
+	initShutdownHandler(logger);
+
 	const results = await Promise.allSettled(
 		scanners.map((scanner) => runScanner(scanner, pollIntervalMs, logger)),
 	);

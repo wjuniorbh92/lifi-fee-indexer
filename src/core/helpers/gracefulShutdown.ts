@@ -3,13 +3,16 @@ import type pino from 'pino';
 type CleanupFn = () => Promise<void>;
 
 let isShuttingDown = false;
+let initialized = false;
 const cleanupFns: CleanupFn[] = [];
 let logger: pino.Logger | undefined;
 
 export function initShutdownHandler(log: pino.Logger): void {
 	logger = log;
-	process.on('SIGTERM', () => runShutdown('SIGTERM'));
-	process.on('SIGINT', () => runShutdown('SIGINT'));
+	if (initialized) return;
+	initialized = true;
+	process.once('SIGTERM', () => runShutdown('SIGTERM'));
+	process.once('SIGINT', () => runShutdown('SIGINT'));
 }
 
 export function registerShutdownHandler(fn: CleanupFn): void {
