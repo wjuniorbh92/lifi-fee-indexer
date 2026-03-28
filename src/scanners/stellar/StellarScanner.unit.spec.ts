@@ -1,0 +1,145 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { NormalizedEvent } from '../../config/types.js';
+import { StellarScanner } from './StellarScanner.js';
+
+const { mockGetLatestLedger, mockGetEvents } = vi.hoisted(() => {
+	const mockGetLatestLedger = vi.fn();
+	const mockGetEvents = vi.fn();
+	return { mockGetLatestLedger, mockGetEvents };
+});
+
+const mockDecodeStellarEvent = vi.hoisted(() => vi.fn());
+const mockGetStellarEvents = vi.hoisted(() => vi.fn());
+
+vi.mock('@stellar/stellar-sdk', () => ({
+	rpc: {
+		Server: vi.fn().mockImplementation(() => ({
+			getLatestLedger: mockGetLatestLedger,
+			getEvents: mockGetEvents,
+		})),
+	},
+}));
+
+vi.mock('./decodeStellarEvent.js', () => ({
+	decodeStellarEvent: mockDecodeStellarEvent,
+}));
+
+vi.mock('./getStellarEvents.js', () => ({
+	getStellarEvents: mockGetStellarEvents,
+}));
+
+const STELLAR_CONFIG = {
+	chainId: 'stellar-testnet',
+	name: 'Stellar Testnet',
+	rpcUrl: 'https://soroban-testnet.stellar.org',
+	contractAddress: 'CABC123',
+	startBlock: 0,
+	batchSize: 100,
+	confirmations: 0,
+	type: 'stellar' as const,
+};
+
+function makeEvent(): NormalizedEvent {
+	return {
+		chainId: 'stellar-testnet',
+		blockNumber: 500100,
+		transactionHash: 'tx-abc',
+		logIndex: 0,
+		token: 'GTOKEN',
+		integrator: 'GINTEGRATOR',
+		integratorFee: '1000',
+		lifiFee: '50',
+		timestamp: new Date('2026-01-01T00:00:00Z'),
+	};
+}
+
+describe('StellarScanner', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	describe('getLatestPosition', () => {
+		it('returns latest ledger sequence', async () => {
+			mockGetLatestLedger.mockResolvedValue({ sequence: 700500 });
+
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+			const result = await scanner.getLatestPosition();
+
+			expect(result).toBe(700500);
+		});
+	});
+
+	describe('getEvents', () => {
+		it('returns normalized events with nextCursor', async () => {
+			const rawEvent = { ledger: 500100, pagingToken: '500100-0-1' };
+			const normalizedEvent = makeEvent();
+
+			mockGetStellarEvents.mockResolvedValue({
+				events: [rawEvent],
+				cursor: 'cursor-abc',
+			});
+			mockDecodeStellarEvent.mockReturnValue(normalizedEvent);
+
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+			const result = await scanner.getEvents(500000, 500200);
+
+			expect(result).toEqual({
+				events: [normalizedEvent],
+				nextCursor: 'cursor-abc',
+			});
+			expect(mockDecodeStellarEvent).toHaveBeenCalledWith(rawEvent, 'stellar-testnet');
+		});
+
+		it('returns empty events with no cursor when no events found', async () => {
+			mockGetStellarEvents.mockResolvedValue({ events: [], cursor: '' });
+
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+			const result = await scanner.getEvents(500000, 500200);
+
+			expect(result).toEqual({
+				events: [],
+				nextCursor: undefined,
+			});
+		});
+
+		it('throws RangeError when from > to', async () => {
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+
+			await expect(scanner.getEvents(200, 100)).rejects.toThrow(
+				'Invalid ledger range: from (200) > to (100)',
+			);
+		});
+
+		it('passes cursor to getStellarEvents when set', async () => {
+			mockGetStellarEvents.mockResolvedValue({ events: [], cursor: '' });
+
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+			scanner.setCursor('existing-cursor');
+
+			await scanner.getEvents(500000, 500200);
+
+			expect(mockGetStellarEvents).toHaveBeenCalledWith(
+				expect.anything(),
+				STELLAR_CONFIG,
+				500000,
+				500200,
+				'existing-cursor',
+			);
+		});
+
+		it('updates internal cursor after getEvents', async () => {
+			mockGetStellarEvents
+				.mockResolvedValueOnce({ events: [], cursor: 'new-cursor' })
+				.mockResolvedValueOnce({ events: [], cursor: '' });
+
+			const scanner = new StellarScanner(STELLAR_CONFIG);
+			await scanner.getEvents(500000, 500200);
+			await scanner.getEvents(500201, 500400);
+
+			expect(mockGetStellarEvents).toHaveBeenCalledTimes(2);
+			expect(mockGetStellarEvents.mock.calls[1][2]).toBe(500201);
+			expect(mockGetStellarEvents.mock.calls[1][3]).toBe(500400);
+			expect(mockGetStellarEvents.mock.calls[1][4]).toBe('new-cursor');
+		});
+	});
+});

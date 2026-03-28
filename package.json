@@ -20,7 +20,7 @@
 		"check:types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@fastify/rate-limit": "^9.1.0",
+		"@fastify/rate-limit": "^10.3.0",
 		"@stellar/stellar-sdk": "^13.1.0",
 		"@typegoose/typegoose": "^12.8.0",
 		"fastify": "^5.2.0",
@@ -33,15 +33,17 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
+		"@swc/core": "^1.15.21",
 		"@types/node": "^22.10.0",
 		"@vitest/coverage-v8": "^2.1.8",
 		"mongodb-memory-server": "^10.1.4",
 		"tsx": "^4.19.2",
 		"typescript": "^5.7.2",
+		"unplugin-swc": "^1.5.9",
 		"vitest": "^2.1.8"
 	},
 	"pnpm": {
-		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "mongodb-memory-server"]
+		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "mongodb-memory-server", "@swc/core"]
 	},
 	"engines": {
 		"node": ">=20.0.0"

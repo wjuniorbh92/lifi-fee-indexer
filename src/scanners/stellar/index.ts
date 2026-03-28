@@ -1,2 +1,3 @@
-// TODO: implement in Phase 4 — barrel exports for stellar scanner
-export {};
+export { StellarScanner } from './StellarScanner.js';
+export { decodeStellarEvent } from './decodeStellarEvent.js';
+export { getStellarEvents } from './getStellarEvents.js';
