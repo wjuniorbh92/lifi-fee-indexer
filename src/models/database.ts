@@ -2,15 +2,19 @@ import mongoose from 'mongoose';
 import type pino from 'pino';
 
 let listenersRegistered = false;
+let intentionalDisconnect = false;
 
 export async function connectDatabase(uri: string, logger: pino.Logger): Promise<void> {
+	intentionalDisconnect = false;
 	if (!listenersRegistered) {
 		mongoose.connection.on('error', (err) => {
 			logger.error({ err }, 'MongoDB connection error');
 		});
 
 		mongoose.connection.on('disconnected', () => {
-			logger.warn('MongoDB disconnected');
+			if (!intentionalDisconnect) {
+				logger.warn('MongoDB disconnected');
+			}
 		});
 
 		listenersRegistered = true;
@@ -25,6 +29,7 @@ export async function connectDatabase(uri: string, logger: pino.Logger): Promise
 }
 
 export async function disconnectDatabase(logger: pino.Logger): Promise<void> {
+	intentionalDisconnect = true;
 	await mongoose.disconnect();
 	logger.info('MongoDB disconnected');
 }
