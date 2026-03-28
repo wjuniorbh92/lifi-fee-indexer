@@ -1,2 +1,3 @@
-// TODO: implement in Phase 3 — async sleep utility
-export {};
+export function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}

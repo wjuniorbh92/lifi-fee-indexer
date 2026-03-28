@@ -18,10 +18,12 @@ Senior Backend Engineer take-home assignment.
 ## Conventions
 - All imports use `.js` extension (ESM NodeNext)
 - `reflect-metadata` is the FIRST import in all 3 entry points (index.ts, scanner.ts, server.ts)
-- Dedup via unique MongoDB index on `(transactionHash, logIndex)` + `insertMany({ ordered: false })`
+- **No magic numbers** — extract numeric/string literals into named constants at module top (e.g. `DEFAULT_MAX_RETRIES`, `BLOCK_FETCH_CONCURRENCY`)
+- **No non-null assertions** (`!`) — Biome enforces `noNonNullAssertion`. Use type narrowing or fallback values instead
+- Dedup via unique MongoDB index on `(chainId, transactionHash, logIndex)` + `insertMany({ ordered: false })`
 - Cursor safety: advance `lastSyncedBlock` ONLY after successful insertMany
 - Resume: `lastSyncedBlock + 1` (no re-scan)
-- Tests: unit tests mock dependencies, integration tests use mongodb-memory-server
+- Tests: unit tests mock dependencies (`vi.hoisted` + `vi.mock`), integration tests use mongodb-memory-server
 
 ## Commands
 - `pnpm test` — run all tests
