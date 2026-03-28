@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+
+.env
+.env.local
+.env.*.local
+
+*.log
+*.tsbuildinfo
+
+docs/
+lifi-fee-indexer-reseach/
+.claude/
