@@ -1,44 +1,54 @@
-name: Claude Code Review
+name: Claude PR Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+  review:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: read
-      id-token: write
-
+    if: |
+      github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
-        uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.issue.number }}
 
+            You are reviewing a HIGH-FREQUENCY TRADING system (Go backend + React frontend).
+            Performance on the hot path is the #1 priority.
+
+            Review this PR focusing on:
+
+            ## HFT-Specific (CRITICAL)
+            - No blocking channel sends on hot path (must use select/default)
+            - No sync.Mutex on read paths (use atomic operations)
+            - No heap allocations in per-tick code paths
+            - No logging in tick-processing loops
+            - O(1) algorithms only on tick path
+
+            ## Auth Safety
+            - MT5_BUILD must stay 5400 — flag any changes to auth constants
+            - Tag88/Tag134 XOR constants must not change
+
+            ## General
+            - Code quality and Go best practices
+            - Potential bugs or race conditions
+            - Security (no secrets in code)
+            - Test coverage for non-trivial functions
+
+            Post a top-level PR comment summarizing findings.
+            Use inline comments (with \`confirmed: true\`) for specific code issues.

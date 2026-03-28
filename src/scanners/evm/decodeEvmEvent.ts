@@ -13,9 +13,13 @@ export function decodeEvmEvent(
 	timestamp: Date,
 	chainId: string,
 ): NormalizedEvent {
+	const blockNum = Number(blockNumber);
+	if (!Number.isSafeInteger(blockNum)) {
+		throw new RangeError(`Block number ${blockNumber} exceeds safe integer range`);
+	}
 	return {
 		chainId,
-		blockNumber: Number(blockNumber),
+		blockNumber: blockNum,
 		transactionHash,
 		logIndex,
 		token: args._token.toLowerCase(),

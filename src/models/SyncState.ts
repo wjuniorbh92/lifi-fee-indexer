@@ -3,7 +3,7 @@ import { getModelForClass, index, modelOptions, prop } from '@typegoose/typegoos
 @modelOptions({
 	schemaOptions: {
 		collection: 'sync_states',
-		timestamps: false,
+		timestamps: { createdAt: false, updatedAt: true },
 		versionKey: false,
 	},
 })
@@ -18,8 +18,8 @@ export class SyncState {
 	@prop()
 	public lastCursor?: string;
 
-	@prop({ required: true })
-	public updatedAt!: Date;
+	@prop()
+	public updatedAt?: Date;
 }
 
 export const SyncStateModel = getModelForClass(SyncState);

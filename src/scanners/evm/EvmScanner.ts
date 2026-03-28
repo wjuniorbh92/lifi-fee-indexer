@@ -1,5 +1,4 @@
 import { http, type PublicClient, createPublicClient } from 'viem';
-import { polygon } from 'viem/chains';
 import type { ChainConfig, NormalizedEvent } from '../../config/types.js';
 import type { ChainScanner } from '../types.js';
 import { decodeEvmEvent } from './decodeEvmEvent.js';
@@ -18,7 +17,6 @@ export class EvmScanner implements ChainScanner {
 		this.client =
 			client ??
 			createPublicClient({
-				chain: polygon,
 				transport: http(config.rpcUrl, {
 					retryCount: RPC_RETRY_COUNT,
 					retryDelay: RPC_RETRY_DELAY_MS,
@@ -45,12 +43,18 @@ export class EvmScanner implements ChainScanner {
 
 		if (logs.length === 0) return [];
 
+		for (const log of logs) {
+			if (log.blockNumber === null || log.transactionHash === null || log.logIndex === null) {
+				throw new Error(`Pending log encountered in block range ${from}-${to}`);
+			}
+		}
+
 		const uniqueBlockNumbers = [...new Set(logs.map((l) => l.blockNumber))];
 		const blockTimestamps = new Map<bigint, Date>();
 		for (let i = 0; i < uniqueBlockNumbers.length; i += BLOCK_FETCH_CONCURRENCY) {
 			const chunk = uniqueBlockNumbers.slice(i, i + BLOCK_FETCH_CONCURRENCY);
 			const blocks = await Promise.all(
-				chunk.map((bn) => this.client.getBlock({ blockNumber: bn })),
+				chunk.map((bn) => this.client.getBlock({ blockNumber: bn! })),
 			);
 			for (const b of blocks) {
 				blockTimestamps.set(b.number, new Date(Number(b.timestamp) * 1000));
@@ -58,18 +62,15 @@ export class EvmScanner implements ChainScanner {
 		}
 
 		return logs.map((log) => {
-			if (log.logIndex === null || log.blockNumber === null || log.transactionHash === null) {
-				throw new Error(`Pending log encountered in block range ${from}-${to}`);
-			}
-			const timestamp = blockTimestamps.get(log.blockNumber);
+			const timestamp = blockTimestamps.get(log.blockNumber!);
 			if (!timestamp) {
 				throw new Error(`Block timestamp not found for block ${log.blockNumber}`);
 			}
 			return decodeEvmEvent(
 				log.args,
-				log.blockNumber,
-				log.transactionHash,
-				log.logIndex,
+				log.blockNumber!,
+				log.transactionHash!,
+				log.logIndex!,
 				timestamp,
 				this.config.chainId,
 			);

@@ -10,7 +10,7 @@ import { getModelForClass, index, modelOptions, prop } from '@typegoose/typegoos
 @index({ integrator: 1 })
 @index({ chainId: 1, blockNumber: 1 })
 @index({ token: 1 })
-@index({ transactionHash: 1, logIndex: 1 }, { unique: true })
+@index({ chainId: 1, transactionHash: 1, logIndex: 1 }, { unique: true })
 export class FeeEvent {
 	@prop({ required: true })
 	public chainId!: string;

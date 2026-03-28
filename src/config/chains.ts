@@ -15,12 +15,13 @@ export function buildChainConfigs(env: Env): ChainConfig[] {
 		},
 	];
 
-	if (env.STELLAR_INTEGRATOR_ADDRESS) {
+	const stellarAddress = env.STELLAR_INTEGRATOR_ADDRESS?.trim();
+	if (stellarAddress) {
 		chains.push({
 			chainId: 'stellar-testnet',
 			name: 'Stellar Testnet',
 			rpcUrl: env.STELLAR_HORIZON_URL,
-			contractAddress: env.STELLAR_INTEGRATOR_ADDRESS,
+			contractAddress: stellarAddress,
 			startBlock: 0,
 			batchSize: env.BATCH_SIZE,
 			confirmations: 0,

@@ -1,14 +1,20 @@
 import mongoose from 'mongoose';
 import type pino from 'pino';
 
-export async function connectDatabase(uri: string, logger: pino.Logger): Promise<void> {
-	mongoose.connection.on('error', (err) => {
-		logger.error({ err }, 'MongoDB connection error');
-	});
+let listenersRegistered = false;
 
-	mongoose.connection.on('disconnected', () => {
-		logger.warn('MongoDB disconnected');
-	});
+export async function connectDatabase(uri: string, logger: pino.Logger): Promise<void> {
+	if (!listenersRegistered) {
+		mongoose.connection.on('error', (err) => {
+			logger.error({ err }, 'MongoDB connection error');
+		});
+
+		mongoose.connection.on('disconnected', () => {
+			logger.warn('MongoDB disconnected');
+		});
+
+		listenersRegistered = true;
+	}
 
 	await mongoose.connect(uri, {
 		serverSelectionTimeoutMS: 5000,

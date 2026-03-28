@@ -46,10 +46,13 @@ describe('loadEnv', () => {
 	});
 
 	it('exits on missing required env vars', async () => {
+		vi.stubEnv('MONGODB_URI', '');
+		vi.stubEnv('POLYGON_RPC_URL', '');
+		vi.stubEnv('FEE_COLLECTOR_ADDRESS', '');
+
 		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-		// No env vars set
 		const { loadEnv } = await import('./env.js');
 		loadEnv();
 
