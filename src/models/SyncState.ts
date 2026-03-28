@@ -1,8 +1,15 @@
-import { getModelForClass, index, prop } from '@typegoose/typegoose';
+import { getModelForClass, index, modelOptions, prop } from '@typegoose/typegoose';
 
+@modelOptions({
+	schemaOptions: {
+		collection: 'sync_states',
+		timestamps: false,
+		versionKey: false,
+	},
+})
 @index({ chainId: 1 }, { unique: true })
 export class SyncState {
-	@prop({ required: true, unique: true })
+	@prop({ required: true })
 	public chainId!: string;
 
 	@prop({ required: true })
@@ -11,10 +18,8 @@ export class SyncState {
 	@prop()
 	public lastCursor?: string;
 
-	@prop({ required: true, default: () => new Date() })
+	@prop({ required: true })
 	public updatedAt!: Date;
 }
 
-export const SyncStateModel = getModelForClass(SyncState, {
-	schemaOptions: { collection: 'sync_states' },
-});
+export const SyncStateModel = getModelForClass(SyncState);

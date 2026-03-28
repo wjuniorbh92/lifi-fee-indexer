@@ -1,5 +1,12 @@
-import { getModelForClass, index, prop } from '@typegoose/typegoose';
+import { getModelForClass, index, modelOptions, prop } from '@typegoose/typegoose';
 
+@modelOptions({
+	schemaOptions: {
+		collection: 'fee_events',
+		timestamps: false,
+		versionKey: false,
+	},
+})
 @index({ integrator: 1 })
 @index({ chainId: 1, blockNumber: 1 })
 @index({ token: 1 })
@@ -33,6 +40,4 @@ export class FeeEvent {
 	public timestamp!: Date;
 }
 
-export const FeeEventModel = getModelForClass(FeeEvent, {
-	schemaOptions: { collection: 'fee_events' },
-});
+export const FeeEventModel = getModelForClass(FeeEvent);
