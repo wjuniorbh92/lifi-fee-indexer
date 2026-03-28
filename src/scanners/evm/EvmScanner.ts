@@ -43,34 +43,41 @@ export class EvmScanner implements ChainScanner {
 
 		if (logs.length === 0) return [];
 
-		for (const log of logs) {
+		// Validate all logs are mined (not pending) — after this, blockNumber/txHash/logIndex are guaranteed non-null
+		const validatedLogs = logs.map((log) => {
 			if (log.blockNumber === null || log.transactionHash === null || log.logIndex === null) {
 				throw new Error(`Pending log encountered in block range ${from}-${to}`);
 			}
-		}
+			return {
+				args: log.args,
+				blockNumber: log.blockNumber,
+				transactionHash: log.transactionHash,
+				logIndex: log.logIndex,
+			};
+		});
 
-		const uniqueBlockNumbers = [...new Set(logs.map((l) => l.blockNumber))];
+		const uniqueBlockNumbers = [...new Set(validatedLogs.map((l) => l.blockNumber))];
 		const blockTimestamps = new Map<bigint, Date>();
 		for (let i = 0; i < uniqueBlockNumbers.length; i += BLOCK_FETCH_CONCURRENCY) {
 			const chunk = uniqueBlockNumbers.slice(i, i + BLOCK_FETCH_CONCURRENCY);
 			const blocks = await Promise.all(
-				chunk.map((bn) => this.client.getBlock({ blockNumber: bn! })),
+				chunk.map((bn) => this.client.getBlock({ blockNumber: bn })),
 			);
 			for (const b of blocks) {
 				blockTimestamps.set(b.number, new Date(Number(b.timestamp) * 1000));
 			}
 		}
 
-		return logs.map((log) => {
-			const timestamp = blockTimestamps.get(log.blockNumber!);
+		return validatedLogs.map((log) => {
+			const timestamp = blockTimestamps.get(log.blockNumber);
 			if (!timestamp) {
 				throw new Error(`Block timestamp not found for block ${log.blockNumber}`);
 			}
 			return decodeEvmEvent(
 				log.args,
-				log.blockNumber!,
-				log.transactionHash!,
-				log.logIndex!,
+				log.blockNumber,
+				log.transactionHash,
+				log.logIndex,
 				timestamp,
 				this.config.chainId,
 			);
