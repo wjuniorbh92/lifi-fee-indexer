@@ -1,5 +1,5 @@
 import type pino from 'pino';
-import { isRetryableRpcError } from '../errors/RpcError.js';
+import { isBlockRangeRpcError, isRetryableRpcError } from '../errors/RpcError.js';
 import { FeeEventModel } from '../models/FeeEvent.js';
 import type { ChainScanner } from '../scanners/types.js';
 import { SyncStateManager } from './SyncStateManager.js';
@@ -10,6 +10,7 @@ import { sleep } from './helpers/sleep.js';
 const SCANNER_MAX_RETRIES = 5;
 const SCANNER_BASE_DELAY_MS = 1000;
 const MONGO_DUPLICATE_KEY_CODE = 11000;
+const MIN_BATCH_SIZE = 1;
 
 export async function runScanner(
 	scanner: ChainScanner,
@@ -18,6 +19,7 @@ export async function runScanner(
 ): Promise<void> {
 	const { chainId, startBlock, batchSize } = scanner.config;
 	const chainLogger = logger.child({ chainId });
+	let currentBatchSize = batchSize;
 
 	chainLogger.info('Scanner started');
 
@@ -49,25 +51,38 @@ export async function runScanner(
 			continue;
 		}
 
-		const toBlock = Math.min(fromBlock + batchSize - 1, latestSafe);
+		const toBlock = Math.min(fromBlock + currentBatchSize - 1, latestSafe);
 
 		chainLogger.info(
 			{ fromBlock, toBlock, blocksInBatch: toBlock - fromBlock + 1 },
 			'Scanning batch',
 		);
 
-		let events: Awaited<ReturnType<typeof scanner.getEvents>> | undefined;
+		let scanResult: Awaited<ReturnType<typeof scanner.getEvents>> | undefined;
 		try {
-			events = await withRetry(() => scanner.getEvents(fromBlock, toBlock), {
+			scanResult = await withRetry(() => scanner.getEvents(fromBlock, toBlock), {
 				maxRetries: SCANNER_MAX_RETRIES,
 				baseDelayMs: SCANNER_BASE_DELAY_MS,
 				retryOn: isRetryableRpcError,
 			});
 		} catch (err) {
+			if (isBlockRangeRpcError(err) && currentBatchSize > MIN_BATCH_SIZE) {
+				const nextBatchSize = Math.max(MIN_BATCH_SIZE, Math.floor(currentBatchSize / 2));
+				chainLogger.warn(
+					{ err, fromBlock, toBlock, batchSize: currentBatchSize, nextBatchSize },
+					'Block range too large — reducing batch size and retrying',
+				);
+				currentBatchSize = nextBatchSize;
+				continue;
+			}
+
 			chainLogger.error({ err, fromBlock, toBlock }, 'Failed to fetch events after retries');
 			await sleep(pollIntervalMs);
 			continue;
 		}
+
+		const events = Array.isArray(scanResult) ? scanResult : scanResult.events;
+		const nextCursor = Array.isArray(scanResult) ? undefined : scanResult.nextCursor;
 
 		if (events.length > 0) {
 			try {
@@ -98,8 +113,7 @@ export async function runScanner(
 		}
 
 		try {
-			const latestCursor = await SyncStateManager.loadCursor(chainId);
-			await SyncStateManager.save(chainId, toBlock, latestCursor);
+			await SyncStateManager.save(chainId, toBlock, nextCursor);
 		} catch (err) {
 			chainLogger.error(
 				{ err, fromBlock, toBlock },

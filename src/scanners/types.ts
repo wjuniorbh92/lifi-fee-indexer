@@ -1,5 +1,12 @@
 import type { ChainConfig, NormalizedEvent } from '../config/types.js';
 
+export interface ScanBatchResultWithCursor {
+	events: NormalizedEvent[];
+	nextCursor?: string;
+}
+
+export type ScanBatchResult = NormalizedEvent[] | ScanBatchResultWithCursor;
+
 export interface ChainScanner {
 	readonly config: ChainConfig;
 
@@ -9,6 +16,7 @@ export interface ChainScanner {
 	/**
 	 * Fetch events in range [from, to] inclusive.
 	 * Returns normalized events ready for MongoDB insertion.
+	 * Cursor-based chains may also return `nextCursor` metadata.
 	 */
-	getEvents(from: number, to: number): Promise<NormalizedEvent[]>;
+	getEvents(from: number, to: number): Promise<ScanBatchResult>;
 }
