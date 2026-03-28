@@ -18,7 +18,9 @@ export class RpcError extends ScannerError {
 }
 
 export function isRetryableRpcError(err: unknown): boolean {
-	if (err instanceof RpcError) return err.retryable;
+	if (err instanceof RpcError) {
+		if (err.retryable) return true;
+	}
 
 	if (err instanceof Error) {
 		const msg = err.message.toLowerCase();

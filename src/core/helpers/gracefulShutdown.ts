@@ -26,7 +26,7 @@ async function runShutdown(signal: string): Promise<void> {
 
 	logger?.info({ signal }, 'Graceful shutdown initiated');
 
-	for (const fn of cleanupFns.reverse()) {
+	for (const fn of [...cleanupFns].reverse()) {
 		try {
 			await fn();
 		} catch (err) {
@@ -34,6 +34,5 @@ async function runShutdown(signal: string): Promise<void> {
 		}
 	}
 
-	logger?.info('Shutdown complete');
-	process.exit(0);
+	logger?.info('Cleanup handlers complete — waiting for scanners to drain');
 }

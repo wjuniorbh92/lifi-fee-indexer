@@ -17,7 +17,6 @@ export class ScannerError extends Error {
 	public readonly code: ErrorCode;
 	public readonly chainId?: string;
 	public readonly retryable: boolean;
-	public override readonly cause?: unknown;
 
 	constructor(options: {
 		message: string;
@@ -26,11 +25,10 @@ export class ScannerError extends Error {
 		retryable?: boolean;
 		cause?: unknown;
 	}) {
-		super(options.message);
+		super(options.message, { cause: options.cause });
 		this.name = 'ScannerError';
 		this.code = options.code;
 		this.chainId = options.chainId;
 		this.retryable = options.retryable ?? false;
-		this.cause = options.cause;
 	}
 }
