@@ -1,44 +1,70 @@
-name: Claude Code Review
+name: Claude PR Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+  review:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
-
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@claude') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
-        uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.issue.number }}
 
+            You are reviewing a FeeCollector event indexer (Node.js/TypeScript backend)
+            that indexes on-chain fee events from Polygon (EVM) and Stellar Testnet
+            into MongoDB via Typegoose, and exposes them through a Fastify REST API.
+
+            Review this PR focusing on:
+
+            ## Indexing Correctness (CRITICAL)
+            - Cursor safety: lastSyncedBlock must advance ONLY after successful DB writes
+            - Resume logic: must restart from lastSyncedBlock + 1 (no re-scan, no gaps)
+            - Dedup: insertMany with ordered: false + unique index on (transactionHash, logIndex)
+            - No dropped or duplicated events during reorgs or RPC failures
+            - BigInt values stored as decimal strings (no precision loss)
+
+            ## Event Processing
+            - Log parsing matches the FeeCollector ABI (correct topics, proper decoding)
+            - Block range chunking handles RPC limits correctly
+            - Error handling and retry logic for RPC/network failures
+            - Graceful shutdown does not lose in-flight work
+
+            ## Database & API
+            - MongoDB writes are safe (no upserts that silently overwrite)
+            - Fastify routes validate input (Zod schemas or equivalent)
+            - Rate limiting is configured on public endpoints
+            - No N+1 queries or unbounded result sets
+
+            ## General
+            - TypeScript best practices and type safety
+            - All imports use .js extension (ESM NodeNext convention)
+            - No secrets or credentials in code
+            - Test coverage for non-trivial functions (Vitest)
+            - Biome lint/format compliance
+
+            Post a top-level PR comment summarizing findings.
+            Use inline comments (with \`confirmed: true\`) for specific code issues.

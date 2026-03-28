@@ -1,2 +1,3 @@
-// TODO: implement in Phase 2 — barrel exports for evm scanner
-export {};
+export { EvmScanner } from './EvmScanner.js';
+export { decodeEvmEvent } from './decodeEvmEvent.js';
+export { getEvmLogs } from './getEvmLogs.js';
