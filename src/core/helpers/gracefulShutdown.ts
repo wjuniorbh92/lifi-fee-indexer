@@ -26,9 +26,9 @@ async function runShutdown(signal: string): Promise<void> {
 
 	logger?.info({ signal }, 'Graceful shutdown initiated');
 
-	for (const fn of [...cleanupFns].reverse()) {
+	for (let i = cleanupFns.length - 1; i >= 0; i--) {
 		try {
-			await fn();
+			await cleanupFns[i]();
 		} catch (err) {
 			logger?.error({ err }, 'Error during shutdown cleanup');
 		}
