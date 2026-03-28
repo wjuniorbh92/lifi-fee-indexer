@@ -10,5 +10,8 @@ coverage/
 *.tsbuildinfo
 
 docs/
-lifi-fee-indexer-reseach/
+lifi-fee-indexer-research/
 .claude/
+
+.DS_Store/
+*/.DS_Store
