@@ -63,7 +63,7 @@ export async function runScanner(
 			scanResult = await withRetry(() => scanner.getEvents(fromBlock, toBlock), {
 				maxRetries: SCANNER_MAX_RETRIES,
 				baseDelayMs: SCANNER_BASE_DELAY_MS,
-				retryOn: isRetryableRpcError,
+				retryOn: (err) => isRetryableRpcError(err) && !isBlockRangeRpcError(err),
 			});
 		} catch (err) {
 			if (isBlockRangeRpcError(err) && currentBatchSize > MIN_BATCH_SIZE) {

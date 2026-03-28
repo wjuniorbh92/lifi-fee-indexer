@@ -14,12 +14,13 @@ interface RetryOptions {
 
 export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
 	const {
-		maxRetries = DEFAULT_MAX_RETRIES,
+		maxRetries: rawMaxRetries = DEFAULT_MAX_RETRIES,
 		baseDelayMs = DEFAULT_BASE_DELAY_MS,
 		maxDelayMs = DEFAULT_MAX_DELAY_MS,
 		retryOn,
 	} = options;
 
+	const maxRetries = Math.max(0, rawMaxRetries);
 	let lastError: unknown;
 
 	for (let attempt = 0; attempt <= maxRetries; attempt++) {

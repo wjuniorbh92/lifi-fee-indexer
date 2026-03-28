@@ -37,5 +37,5 @@ async function runShutdown(signal: string): Promise<void> {
 		}
 	}
 
-	logger?.info('Cleanup handlers complete — waiting for scanners to drain');
+	logger?.info('Cleanup handlers complete — returning control to caller');
 }
