@@ -1,5 +1,10 @@
 import { sleep } from './sleep.js';
 
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_BASE_DELAY_MS = 1000;
+const DEFAULT_MAX_DELAY_MS = 30_000;
+const JITTER_FACTOR = 0.1;
+
 interface RetryOptions {
 	maxRetries?: number;
 	baseDelayMs?: number;
@@ -8,7 +13,12 @@ interface RetryOptions {
 }
 
 export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-	const { maxRetries = 3, baseDelayMs = 1000, maxDelayMs = 30000, retryOn } = options;
+	const {
+		maxRetries = DEFAULT_MAX_RETRIES,
+		baseDelayMs = DEFAULT_BASE_DELAY_MS,
+		maxDelayMs = DEFAULT_MAX_DELAY_MS,
+		retryOn,
+	} = options;
 
 	let lastError: unknown;
 
@@ -22,7 +32,7 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
 			if (retryOn && !retryOn(err)) break;
 
 			const baseDelay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
-			const jitter = Math.random() * baseDelay * 0.1;
+			const jitter = Math.random() * baseDelay * JITTER_FACTOR;
 			const delay = Math.floor(baseDelay + jitter);
 
 			await sleep(delay);
