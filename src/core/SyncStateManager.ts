@@ -24,9 +24,13 @@ export const SyncStateManager = {
 		if (lastCursor !== undefined) {
 			update.lastCursor = lastCursor;
 		}
-		await SyncStateModel.findOneAndUpdate({ chainId }, update, {
-			upsert: true,
-			new: true,
-		});
+		await SyncStateModel.findOneAndUpdate(
+			{ chainId },
+			{ $set: update },
+			{
+				upsert: true,
+				new: true,
+			},
+		);
 	},
 };

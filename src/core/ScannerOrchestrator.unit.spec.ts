@@ -284,6 +284,44 @@ describe('ScannerOrchestrator', () => {
 		expect(mockSleep).toHaveBeenCalledWith(1000);
 	});
 
+	it('resets sync state when Stellar chain position is behind cursor (testnet reset)', async () => {
+		// Simulate: lastSyncedBlock = 500000 (loadOrCreate returns 500001), but latest ledger is 100
+		mockLoadOrCreate.mockResolvedValueOnce(500_001);
+
+		// After reset: loadOrCreate returns the reset position + 1
+		mockLoadOrCreate.mockResolvedValueOnce(101);
+
+		// Stop after second iteration (no events to process, just verify reset happened)
+		mockIsShutdownRequested
+			.mockReturnValueOnce(false)
+			.mockReturnValueOnce(false)
+			.mockReturnValueOnce(true);
+
+		const mockSetCursor = vi.fn();
+		const scanner: ChainScanner = {
+			config: {
+				chainId: 'stellar-testnet',
+				name: 'Stellar Testnet',
+				rpcUrl: 'https://soroban-testnet.stellar.org',
+				contractAddress: 'CABC123',
+				startBlock: 0,
+				batchSize: 10,
+				confirmations: 0,
+				type: 'stellar',
+			},
+			getLatestPosition: vi.fn().mockResolvedValue(100),
+			getEvents: vi.fn().mockResolvedValue({ events: [], nextCursor: undefined }),
+			setCursor: mockSetCursor,
+		} as unknown as ChainScanner;
+
+		await runScanner(scanner, 1000, createLogger());
+
+		// Should have reset sync state to the latest position
+		expect(mockSave).toHaveBeenCalledWith('stellar-testnet', 100, undefined);
+		// Should have cleared the cursor
+		expect(mockSetCursor).toHaveBeenCalledWith(undefined);
+	});
+
 	it('halves batch size after block-range error and retries with smaller window', async () => {
 		mockIsShutdownRequested
 			.mockReturnValueOnce(false)

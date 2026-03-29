@@ -116,7 +116,9 @@ describe('GET /events (integration)', () => {
 
 		const body = response.json();
 		expect(body.data).toHaveLength(2);
-		expect(body.pagination).toEqual({ total: 5, limit: 2, offset: 1 });
+		expect(body.pagination.total).toBe(5);
+		expect(body.pagination.limit).toBe(2);
+		expect(body.pagination.offset).toBe(1);
 	});
 
 	it('returns empty array when no events match', async () => {
@@ -129,6 +131,92 @@ describe('GET /events (integration)', () => {
 		const body = response.json();
 		expect(body.data).toHaveLength(0);
 		expect(body.pagination.total).toBe(0);
+	});
+
+	it('matches integrator case-insensitively', async () => {
+		await FeeEventModel.insertMany([makeEvent({ logIndex: 0 })]);
+
+		const app = await buildServer();
+		const response = await app.inject({
+			method: 'GET',
+			url: '/events?integrator=0xE165726007b58Dab2893F85e206f20388FA2f8CE',
+		});
+
+		expect(response.statusCode).toBe(200);
+		const body = response.json();
+		expect(body.data).toHaveLength(1);
+	});
+
+	it('matches token filter case-insensitively', async () => {
+		await FeeEventModel.insertMany([
+			makeEvent({ logIndex: 0, token: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174' }),
+		]);
+
+		const app = await buildServer();
+		const response = await app.inject({
+			method: 'GET',
+			url: '/events?integrator=0xe165726007b58dab2893f85e206f20388fa2f8ce&token=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
+		});
+
+		expect(response.statusCode).toBe(200);
+		const body = response.json();
+		expect(body.data).toHaveLength(1);
+	});
+
+	it('returns nextCursor when there are more results', async () => {
+		const events = Array.from({ length: 3 }, (_, i) =>
+			makeEvent({ blockNumber: MOCK_BASE_BLOCK + i, logIndex: i }),
+		);
+		await FeeEventModel.insertMany(events);
+
+		const app = await buildServer();
+		const response = await app.inject({
+			method: 'GET',
+			url: '/events?integrator=0xe165726007b58dab2893f85e206f20388fa2f8ce&limit=2',
+		});
+
+		const body = response.json();
+		expect(body.data).toHaveLength(2);
+		expect(body.pagination.nextCursor).toBeDefined();
+		expect(typeof body.pagination.nextCursor).toBe('string');
+	});
+
+	it('returns remaining results when using cursor', async () => {
+		const events = Array.from({ length: 3 }, (_, i) =>
+			makeEvent({ blockNumber: MOCK_BASE_BLOCK + i, logIndex: i }),
+		);
+		await FeeEventModel.insertMany(events);
+
+		const app = await buildServer();
+
+		const first = await app.inject({
+			method: 'GET',
+			url: '/events?integrator=0xe165726007b58dab2893f85e206f20388fa2f8ce&limit=2',
+		});
+		const firstBody = first.json();
+		expect(firstBody.data).toHaveLength(2);
+
+		const second = await app.inject({
+			method: 'GET',
+			url: `/events?integrator=0xe165726007b58dab2893f85e206f20388fa2f8ce&limit=2&cursor=${firstBody.pagination.nextCursor}`,
+		});
+		const secondBody = second.json();
+		expect(secondBody.data).toHaveLength(1);
+		expect(secondBody.pagination.nextCursor).toBeUndefined();
+	});
+
+	it('does not return nextCursor when all results fit in one page', async () => {
+		await FeeEventModel.insertMany([makeEvent({ logIndex: 0 })]);
+
+		const app = await buildServer();
+		const response = await app.inject({
+			method: 'GET',
+			url: '/events?integrator=0xe165726007b58dab2893f85e206f20388fa2f8ce&limit=10',
+		});
+
+		const body = response.json();
+		expect(body.data).toHaveLength(1);
+		expect(body.pagination.nextCursor).toBeUndefined();
 	});
 });
 

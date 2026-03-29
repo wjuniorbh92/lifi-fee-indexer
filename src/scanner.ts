@@ -1,5 +1,5 @@
-import 'dotenv/config';
 import 'reflect-metadata';
+import 'dotenv/config';
 import { loadEnv } from './config/env.js';
 import { runAllScanners } from './core/ScannerOrchestrator.js';
 import { initScanners } from './core/initScanners.js';

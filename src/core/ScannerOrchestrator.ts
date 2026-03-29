@@ -2,6 +2,7 @@ import type pino from 'pino';
 import { isBlockRangeRpcError, isRetryableRpcError } from '../errors/RpcError.js';
 import { FeeEventModel } from '../models/FeeEvent.js';
 import type { ChainScanner } from '../scanners/types.js';
+import { metrics } from '../utils/metrics.js';
 import { SyncStateManager } from './SyncStateManager.js';
 import { initShutdownHandler, isShutdownRequested } from './helpers/gracefulShutdown.js';
 import { withRetry } from './helpers/retry.js';
@@ -61,6 +62,20 @@ export async function runScanner(
 		}
 
 		if (fromBlock > latestSafe) {
+			// Stellar testnet resets quarterly — detect when the chain has rewound
+			// and reset sync state to start from the new latest position.
+			if (scanner.config.type === 'stellar' && fromBlock - latestSafe > 1) {
+				chainLogger.warn(
+					{ fromBlock, latestSafe },
+					'Chain position is behind cursor — possible testnet reset, resetting sync state',
+				);
+				await SyncStateManager.save(chainId, latestSafe, undefined);
+				if ('setCursor' in scanner && typeof scanner.setCursor === 'function') {
+					scanner.setCursor(undefined);
+				}
+				continue;
+			}
+
 			chainLogger.debug({ fromBlock, latestSafe }, 'Waiting for new blocks');
 			await sleep(pollIntervalMs);
 			continue;
@@ -72,6 +87,7 @@ export async function runScanner(
 			{ fromBlock, toBlock, blocksInBatch: toBlock - fromBlock + 1 },
 			'Scanning batch',
 		);
+		const batchStart = performance.now();
 
 		let scanResult: Awaited<ReturnType<typeof scanner.getEvents>> | undefined;
 		try {
@@ -94,6 +110,7 @@ export async function runScanner(
 			}
 
 			chainLogger.error({ err, fromBlock, toBlock }, 'Failed to fetch events after retries');
+			metrics.increment('scanner_errors_total', { chainId, type: 'rpc' });
 			await sleep(pollIntervalMs);
 			continue;
 		}
@@ -134,6 +151,7 @@ export async function runScanner(
 						{ err, fromBlock, toBlock },
 						'DB write failed — cursor not advanced, will retry batch',
 					);
+					metrics.increment('scanner_errors_total', { chainId, type: 'db_write' });
 					await sleep(pollIntervalMs);
 					continue;
 				}
@@ -148,11 +166,19 @@ export async function runScanner(
 			if (nextCursor && 'setCursor' in scanner && typeof scanner.setCursor === 'function') {
 				scanner.setCursor(nextCursor);
 			}
+
+			const batchDurationSec = (performance.now() - batchStart) / 1000;
+			metrics.increment('scanner_batches_total', { chainId });
+			metrics.observe('scanner_batch_duration_seconds', batchDurationSec, { chainId });
+			if (events.length > 0) {
+				metrics.increment('scanner_events_inserted_total', { chainId }, events.length);
+			}
 		} catch (err) {
 			chainLogger.error(
 				{ err, fromBlock, toBlock },
 				'Failed to persist sync state — cursor not advanced, will retry batch',
 			);
+			metrics.increment('scanner_errors_total', { chainId, type: 'db_save' });
 			await sleep(pollIntervalMs);
 		}
 	}

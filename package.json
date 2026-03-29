@@ -8,9 +8,9 @@
 	"scripts": {
 		"build": "tsc",
 		"start": "node dist/index.js",
-		"dev": "pnpm build && node --watch dist/index.js",
-		"dev:scanner": "pnpm build && node --watch dist/scanner.js",
-		"dev:server": "pnpm build && node --watch dist/server.js",
+		"dev": "tsx watch src/index.ts",
+		"dev:scanner": "tsx watch src/scanner.ts",
+		"dev:server": "tsx watch src/server.ts",
 		"scanner": "node dist/scanner.js",
 		"server": "node dist/server.js",
 		"test": "vitest --run",

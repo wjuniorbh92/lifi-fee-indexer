@@ -60,7 +60,7 @@ describe('SyncStateManager', () => {
 
 		expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
 			{ chainId: 'polygon' },
-			{ chainId: 'polygon', lastSyncedBlock: 78651000 },
+			{ $set: { chainId: 'polygon', lastSyncedBlock: 78651000 } },
 			{ upsert: true, new: true },
 		);
 	});
@@ -73,9 +73,11 @@ describe('SyncStateManager', () => {
 		expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
 			{ chainId: 'stellar-testnet' },
 			{
-				chainId: 'stellar-testnet',
-				lastSyncedBlock: 1700200,
-				lastCursor: 'paging-token-xyz',
+				$set: {
+					chainId: 'stellar-testnet',
+					lastSyncedBlock: 1700200,
+					lastCursor: 'paging-token-xyz',
+				},
 			},
 			{ upsert: true, new: true },
 		);

@@ -1,5 +1,5 @@
-import 'dotenv/config';
 import 'reflect-metadata';
+import 'dotenv/config';
 import { buildServer } from './api/server.js';
 import { loadEnv } from './config/env.js';
 import { initShutdownHandler, registerShutdownHandler } from './core/helpers/gracefulShutdown.js';

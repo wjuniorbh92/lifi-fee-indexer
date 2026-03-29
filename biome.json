@@ -18,6 +18,6 @@
 		}
 	},
 	"files": {
-		"ignore": ["node_modules", "dist", "coverage", ".env*"]
+		"ignore": ["node_modules", "dist", "coverage", ".env*", ".claude"]
 	}
 }
