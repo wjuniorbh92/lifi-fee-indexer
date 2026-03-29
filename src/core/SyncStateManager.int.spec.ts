@@ -8,7 +8,7 @@ const START_BLOCK = 78600000;
 const SAVED_BLOCK = 78600100;
 
 describe('SyncStateManager (integration)', () => {
-	let mongo: MongoMemoryServer;
+	let mongo: MongoMemoryServer | undefined;
 
 	beforeAll(async () => {
 		mongo = await MongoMemoryServer.create();
@@ -16,8 +16,10 @@ describe('SyncStateManager (integration)', () => {
 	});
 
 	afterAll(async () => {
-		await mongoose.disconnect();
-		await mongo.stop();
+		if (mongoose.connection.readyState !== 0) {
+			await mongoose.disconnect();
+		}
+		await mongo?.stop();
 	});
 
 	beforeEach(async () => {

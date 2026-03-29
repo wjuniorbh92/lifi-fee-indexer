@@ -59,7 +59,7 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 				},
 			},
 		},
-		async (_request, reply) => {
+		async (request, reply) => {
 			const dbConnected = isDatabaseConnected();
 
 			if (!dbConnected) {
@@ -70,7 +70,17 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 				});
 			}
 
-			const states = await SyncStateModel.find().lean();
+			let states: Array<{ chainId: string; lastSyncedBlock: number; updatedAt?: Date }>;
+			try {
+				states = await SyncStateModel.find().lean();
+			} catch (err) {
+				request.log.error({ err }, 'Health check DB query failed');
+				return reply.status(503).send({
+					status: 'error',
+					database: 'connected',
+					chains: [],
+				});
+			}
 			const now = Date.now();
 
 			const chains: ChainStatus[] = states.map((s) => {

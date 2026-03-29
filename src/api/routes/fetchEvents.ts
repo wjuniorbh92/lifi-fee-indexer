@@ -60,6 +60,30 @@ export const fetchEventsRoute: FastifyPluginAsync<FetchEventsRouteOptions> = asy
 							},
 						},
 					},
+					400: {
+						type: 'object',
+						required: ['error', 'code'],
+						properties: {
+							error: { type: 'string' },
+							code: { type: 'string' },
+						},
+					},
+					500: {
+						type: 'object',
+						required: ['error', 'code'],
+						properties: {
+							error: { type: 'string' },
+							code: { type: 'string' },
+						},
+					},
+					502: {
+						type: 'object',
+						required: ['error', 'code'],
+						properties: {
+							error: { type: 'string' },
+							code: { type: 'string' },
+						},
+					},
 				},
 			},
 		},

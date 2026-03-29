@@ -15,6 +15,7 @@ describe('gracefulShutdown', () => {
 	let isShutdownRequested: typeof import('./gracefulShutdown.js')['isShutdownRequested'];
 
 	beforeEach(async () => {
+		vi.useFakeTimers();
 		vi.resetModules();
 		vi.restoreAllMocks();
 		const mod = await import('./gracefulShutdown.js');
@@ -24,6 +25,7 @@ describe('gracefulShutdown', () => {
 	});
 
 	afterEach(() => {
+		vi.useRealTimers();
 		process.removeAllListeners('SIGTERM');
 		process.removeAllListeners('SIGINT');
 	});
@@ -36,8 +38,7 @@ describe('gracefulShutdown', () => {
 		initShutdownHandler(mockLogger as never);
 
 		process.emit('SIGTERM');
-		// Allow async runShutdown to execute
-		await new Promise((r) => setTimeout(r, 10));
+		await vi.runAllTimersAsync();
 
 		expect(isShutdownRequested()).toBe(true);
 	});
@@ -46,7 +47,7 @@ describe('gracefulShutdown', () => {
 		initShutdownHandler(mockLogger as never);
 
 		process.emit('SIGINT');
-		await new Promise((r) => setTimeout(r, 10));
+		await vi.runAllTimersAsync();
 
 		expect(isShutdownRequested()).toBe(true);
 	});
@@ -66,7 +67,7 @@ describe('gracefulShutdown', () => {
 		});
 
 		process.emit('SIGTERM');
-		await new Promise((r) => setTimeout(r, 50));
+		await vi.runAllTimersAsync();
 
 		expect(callOrder).toEqual([3, 2, 1]);
 	});
@@ -86,7 +87,7 @@ describe('gracefulShutdown', () => {
 		});
 
 		process.emit('SIGTERM');
-		await new Promise((r) => setTimeout(r, 50));
+		await vi.runAllTimersAsync();
 
 		expect(callOrder).toEqual([3, 1]);
 		expect(mockLogger.error).toHaveBeenCalled();
@@ -101,7 +102,7 @@ describe('gracefulShutdown', () => {
 		});
 
 		process.emit('SIGTERM');
-		await new Promise((r) => setTimeout(r, 50));
+		await vi.runAllTimersAsync();
 
 		// SIGTERM was registered with process.once, so a second
 		// emit won't trigger. But the guard in runShutdown also
