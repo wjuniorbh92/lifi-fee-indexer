@@ -3,21 +3,28 @@ import { SyncStateModel } from '../../models/SyncState.js';
 import { isDatabaseConnected } from '../../models/database.js';
 
 const STALENESS_MULTIPLIER = 3;
-const DEFAULT_POLL_INTERVAL_MS = 10_000;
+
+const HEALTH_STATUS_OK = 'ok' as const;
+const HEALTH_STATUS_DEGRADED = 'degraded' as const;
+const HEALTH_STATUS_ERROR = 'error' as const;
+const DB_CONNECTED = 'connected' as const;
+const DB_DISCONNECTED = 'disconnected' as const;
+const CHAIN_SYNCING = 'syncing' as const;
+const CHAIN_STALE = 'stale' as const;
 
 export interface HealthRouteOptions {
-	pollIntervalMs?: number;
+	pollIntervalMs: number;
 }
 
 interface ChainStatus {
 	chainId: string;
 	lastSyncedBlock: number;
 	updatedAt: Date | undefined;
-	status: 'syncing' | 'stale';
+	status: typeof CHAIN_SYNCING | typeof CHAIN_STALE;
 }
 
 export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, options) => {
-	const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+	const { pollIntervalMs } = options;
 	const stalenessThresholdMs = pollIntervalMs * STALENESS_MULTIPLIER;
 
 	const chainStatusSchema = {
@@ -29,7 +36,7 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 			updatedAt: { type: 'string', format: 'date-time' },
 			status: {
 				type: 'string',
-				enum: ['syncing', 'stale'],
+				enum: [CHAIN_SYNCING, CHAIN_STALE],
 			},
 		},
 	};
@@ -38,8 +45,8 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 		type: 'object',
 		required: ['status', 'database', 'chains'],
 		properties: {
-			status: { type: 'string', enum: ['ok', 'degraded'] },
-			database: { type: 'string', enum: ['connected'] },
+			status: { type: 'string', enum: [HEALTH_STATUS_OK, HEALTH_STATUS_DEGRADED] },
+			database: { type: 'string', enum: [DB_CONNECTED] },
 			chains: { type: 'array', items: chainStatusSchema },
 		},
 	};
@@ -48,8 +55,8 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 		type: 'object',
 		required: ['status', 'database', 'chains'],
 		properties: {
-			status: { type: 'string', enum: ['error'] },
-			database: { type: 'string', enum: ['connected', 'disconnected'] },
+			status: { type: 'string', enum: [HEALTH_STATUS_ERROR] },
+			database: { type: 'string', enum: [DB_CONNECTED, DB_DISCONNECTED] },
 			chains: { type: 'array', items: chainStatusSchema },
 		},
 	};
@@ -69,8 +76,8 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 
 			if (!dbConnected) {
 				return reply.status(503).send({
-					status: 'error',
-					database: 'disconnected',
+					status: HEALTH_STATUS_ERROR,
+					database: DB_DISCONNECTED,
 					chains: [],
 				});
 			}
@@ -81,8 +88,8 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 			} catch (err) {
 				request.log.error({ err }, 'Health check DB query failed');
 				return reply.status(503).send({
-					status: 'error',
-					database: 'connected',
+					status: HEALTH_STATUS_ERROR,
+					database: DB_CONNECTED,
 					chains: [],
 				});
 			}
@@ -90,22 +97,23 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 
 			const chains: ChainStatus[] = states.map((s) => {
 				const updatedAt = s.updatedAt ?? undefined;
-				const isStale = updatedAt !== undefined && now - updatedAt.getTime() > stalenessThresholdMs;
+				// Fail closed: missing timestamp means freshness is unknown → treat as stale
+				const isStale = updatedAt === undefined || now - updatedAt.getTime() > stalenessThresholdMs;
 
 				return {
 					chainId: s.chainId,
 					lastSyncedBlock: s.lastSyncedBlock,
 					updatedAt,
-					status: isStale ? 'stale' : 'syncing',
+					status: isStale ? CHAIN_STALE : CHAIN_SYNCING,
 				};
 			});
 
-			const hasStaleChains = chains.some((c) => c.status === 'stale');
-			const status = hasStaleChains ? 'degraded' : 'ok';
+			const hasStaleChains = chains.some((c) => c.status === CHAIN_STALE);
+			const status = hasStaleChains ? HEALTH_STATUS_DEGRADED : HEALTH_STATUS_OK;
 
 			return reply.status(200).send({
 				status,
-				database: 'connected',
+				database: DB_CONNECTED,
 				chains,
 			});
 		},

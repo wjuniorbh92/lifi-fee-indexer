@@ -103,7 +103,7 @@ describe('GET /health', () => {
 		expect(body.chains).toEqual([]);
 	});
 
-	it('marks chain as syncing when updatedAt is undefined', async () => {
+	it('marks chain as stale when updatedAt is undefined (fail closed)', async () => {
 		mockIsDatabaseConnected.mockReturnValue(true);
 		mockFind.mockReturnValue({
 			lean: vi.fn().mockResolvedValue([
@@ -119,7 +119,7 @@ describe('GET /health', () => {
 		const body = JSON.parse(res.body);
 
 		expect(res.statusCode).toBe(200);
-		expect(body.status).toBe('ok');
-		expect(body.chains[0].status).toBe('syncing');
+		expect(body.status).toBe('degraded');
+		expect(body.chains[0].status).toBe('stale');
 	});
 });

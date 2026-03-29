@@ -3,6 +3,7 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import fastify from 'fastify';
 import type pino from 'pino';
+import { DEFAULT_POLL_INTERVAL_MS } from '../config/env.js';
 import type { ChainScanner } from '../scanners/types.js';
 import { metrics } from '../utils/metrics.js';
 import { normalizeAddress } from '../utils/normalizeAddress.js';
@@ -64,7 +65,9 @@ export async function buildServer(options: BuildServerOptions = {}) {
 	});
 
 	await app.register(eventsRoute);
-	await app.register(healthRoute, { pollIntervalMs });
+	await app.register(healthRoute, {
+		pollIntervalMs: pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+	});
 
 	app.get('/metrics', async (_request, reply) => {
 		return reply.type('text/plain; charset=utf-8').send(metrics.serialize());
