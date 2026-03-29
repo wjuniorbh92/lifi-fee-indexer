@@ -24,6 +24,7 @@ export class EvmScanner implements ChainScanner {
 			});
 	}
 
+	/** Returns latest block minus confirmations to avoid reorgs (64 blocks on Polygon ≈ 2 min). */
 	async getLatestPosition(): Promise<number> {
 		const blockNumber = await this.client.getBlockNumber();
 		return Math.max(0, Number(blockNumber) - this.config.confirmations);
@@ -56,6 +57,8 @@ export class EvmScanner implements ChainScanner {
 			};
 		});
 
+		// Deduplicate block numbers to minimize getBlock calls — a batch of 2000 blocks
+		// may have many events in the same block, but we only need one timestamp per block.
 		const uniqueBlockNumbers = [...new Set(validatedLogs.map((l) => l.blockNumber))];
 		const blockTimestamps = new Map<bigint, Date>();
 		for (let i = 0; i < uniqueBlockNumbers.length; i += BLOCK_FETCH_CONCURRENCY) {

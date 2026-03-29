@@ -162,6 +162,49 @@ describe('ScannerOrchestrator', () => {
 		expect(mockSave).toHaveBeenCalledWith('polygon', 109, undefined);
 	});
 
+	it('advances cursor when writeErrors use nested err.code shape (MongoDB driver v6)', async () => {
+		mockIsShutdownRequested.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+		const bulkError = Object.assign(new Error('MongoBulkWriteError'), {
+			writeErrors: [
+				{ err: { code: 11000 }, index: 0 },
+				{ err: { code: 11000 }, index: 4 },
+			],
+		});
+		mockInsertMany.mockRejectedValueOnce(bulkError);
+
+		const scanner: ChainScanner = {
+			config: {
+				chainId: 'polygon',
+				name: 'Polygon',
+				rpcUrl: 'https://polygon-rpc.com',
+				contractAddress: '0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9',
+				startBlock: 78_600_000,
+				batchSize: 10,
+				confirmations: 64,
+				type: 'evm',
+			},
+			getLatestPosition: vi.fn().mockResolvedValue(110),
+			getEvents: vi.fn().mockResolvedValue([
+				{
+					chainId: 'polygon',
+					blockNumber: 105,
+					transactionHash: '0xabc',
+					logIndex: 0,
+					token: '0x0000000000000000000000000000000000000000',
+					integrator: '0x0000000000000000000000000000000000000001',
+					integratorFee: '10',
+					lifiFee: '2',
+					timestamp: new Date('2026-01-01T00:00:00.000Z'),
+				},
+			]),
+		};
+
+		await runScanner(scanner, 1000, createLogger());
+
+		expect(mockSave).toHaveBeenCalledWith('polygon', 109, undefined);
+	});
+
 	it('does not advance cursor when writeErrors contain non-duplicate codes', async () => {
 		mockIsShutdownRequested.mockReturnValueOnce(false).mockReturnValueOnce(true);
 

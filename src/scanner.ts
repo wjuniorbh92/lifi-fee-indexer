@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import 'reflect-metadata';
 import { loadEnv } from './config/env.js';
 import { runAllScanners } from './core/ScannerOrchestrator.js';

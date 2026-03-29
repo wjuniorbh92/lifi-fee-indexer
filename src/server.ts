@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import 'reflect-metadata';
 import { buildServer } from './api/server.js';
 import { loadEnv } from './config/env.js';

@@ -1,3 +1,11 @@
+/**
+ * Graceful shutdown handler.
+ *
+ * On SIGTERM/SIGINT: sets the shutdown flag (checked by scanner loops),
+ * then runs cleanup handlers in LIFO order (last registered = first run)
+ * so that dependents shut down before their dependencies (e.g. Fastify
+ * closes before the DB connection). If cleanup exceeds 15s, force-exits.
+ */
 import type pino from 'pino';
 
 type CleanupFn = () => Promise<void>;
@@ -38,6 +46,8 @@ async function runShutdown(signal: string): Promise<void> {
 	}, FORCE_KILL_TIMEOUT_MS);
 	forceKillTimer.unref();
 
+	// Execute cleanup in reverse registration order (LIFO) so that
+	// higher-level services (API server) close before lower-level ones (DB).
 	for (let i = cleanupFns.length - 1; i >= 0; i--) {
 		try {
 			await cleanupFns[i]();

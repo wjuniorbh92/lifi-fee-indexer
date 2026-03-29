@@ -6,6 +6,7 @@ import { healthRoute } from './routes/health.js';
 
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_BODY_SIZE = 1_048_576; // 1 MB
 
 export async function buildServer(logger?: pino.Logger) {
 	const app = fastify({
@@ -15,6 +16,8 @@ export async function buildServer(logger?: pino.Logger) {
 					transport: logger.level === 'debug' ? { target: 'pino-pretty' } : undefined,
 				}
 			: false,
+		trustProxy: true,
+		bodyLimit: MAX_BODY_SIZE,
 	});
 
 	await app.register(rateLimit, {

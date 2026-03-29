@@ -12,6 +12,14 @@ interface RetryOptions {
 	retryOn?: (err: unknown) => boolean;
 }
 
+/**
+ * Retry with exponential backoff and jitter.
+ *
+ * Delay formula: min(baseDelay * 2^attempt, maxDelay) + random jitter (±10%).
+ * Jitter prevents thundering herd when multiple scanners retry simultaneously.
+ * The `retryOn` predicate allows callers to only retry transient errors (e.g.
+ * network timeouts, rate limits) while failing fast on permanent ones.
+ */
 export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
 	const {
 		maxRetries: rawMaxRetries = DEFAULT_MAX_RETRIES,

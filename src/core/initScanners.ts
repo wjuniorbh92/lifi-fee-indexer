@@ -29,6 +29,19 @@ export async function initScanners(env: Env, logger: pino.Logger): Promise<Chain
 		if (scanner instanceof StellarScanner) {
 			const cursor = await SyncStateManager.loadCursor(scanner.config.chainId);
 			if (cursor) scanner.setCursor(cursor);
+
+			// Stellar has 7-day retention — if startBlock is 0, start from latest ledger
+			if (scanner.config.startBlock === 0) {
+				const existingState = await SyncStateManager.loadOrCreate(scanner.config.chainId, 0);
+				if (existingState === 0) {
+					const latest = await scanner.getLatestPosition();
+					logger.info(
+						{ chainId: scanner.config.chainId, latestLedger: latest },
+						'Stellar: no start block configured, starting from latest ledger',
+					);
+					(scanner.config as { startBlock: number }).startBlock = latest;
+				}
+			}
 		}
 	}
 
