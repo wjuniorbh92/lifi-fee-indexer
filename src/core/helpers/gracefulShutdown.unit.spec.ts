@@ -104,9 +104,12 @@ describe('gracefulShutdown', () => {
 		process.emit('SIGTERM');
 		await vi.runAllTimersAsync();
 
-		// SIGTERM was registered with process.once, so a second
-		// emit won't trigger. But the guard in runShutdown also
-		// prevents re-entry.
+		// SIGTERM was registered with process.once, so it won't fire again.
+		// Emit SIGINT (the other registered signal) to exercise the
+		// isShuttingDown re-entry guard in runShutdown.
+		process.emit('SIGINT');
+		await vi.runAllTimersAsync();
+
 		expect(callCount).toBe(1);
 		expect(isShutdownRequested()).toBe(true);
 	});

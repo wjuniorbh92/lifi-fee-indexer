@@ -300,8 +300,8 @@ All error responses use a consistent structured format:
 | `RPC_FETCH_FAILED` | 502 | RPC unreachable after retries |
 | `DB_WRITE_FAILED` | 500 | MongoDB write failed |
 | `NOT_FOUND` | 404 | Route not found |
+| `VALIDATION_ERROR` | 400 | Request body fails schema validation |
 | `FORBIDDEN` | 403 | IP banned (repeated 404 abuse) |
-```
 
 ## Testing
 

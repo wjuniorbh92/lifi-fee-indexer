@@ -20,32 +20,37 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 	const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
 	const stalenessThresholdMs = pollIntervalMs * STALENESS_MULTIPLIER;
 
-	const healthResponseSchema = {
+	const chainStatusSchema = {
 		type: 'object',
+		required: ['chainId', 'lastSyncedBlock', 'status'],
 		properties: {
+			chainId: { type: 'string' },
+			lastSyncedBlock: { type: 'integer' },
+			updatedAt: { type: 'string', format: 'date-time' },
 			status: {
 				type: 'string',
-				enum: ['ok', 'degraded', 'error'],
+				enum: ['syncing', 'stale'],
 			},
-			database: {
-				type: 'string',
-				enum: ['connected', 'disconnected'],
-			},
-			chains: {
-				type: 'array',
-				items: {
-					type: 'object',
-					properties: {
-						chainId: { type: 'string' },
-						lastSyncedBlock: { type: 'integer' },
-						updatedAt: { type: 'string', format: 'date-time' },
-						status: {
-							type: 'string',
-							enum: ['syncing', 'stale'],
-						},
-					},
-				},
-			},
+		},
+	};
+
+	const healthOkSchema = {
+		type: 'object',
+		required: ['status', 'database', 'chains'],
+		properties: {
+			status: { type: 'string', enum: ['ok', 'degraded'] },
+			database: { type: 'string', enum: ['connected'] },
+			chains: { type: 'array', items: chainStatusSchema },
+		},
+	};
+
+	const healthErrorSchema = {
+		type: 'object',
+		required: ['status', 'database', 'chains'],
+		properties: {
+			status: { type: 'string', enum: ['error'] },
+			database: { type: 'string', enum: ['connected', 'disconnected'] },
+			chains: { type: 'array', items: chainStatusSchema },
 		},
 	};
 
@@ -54,8 +59,8 @@ export const healthRoute: FastifyPluginAsync<HealthRouteOptions> = async (app, o
 		{
 			schema: {
 				response: {
-					200: healthResponseSchema,
-					503: healthResponseSchema,
+					200: healthOkSchema,
+					503: healthErrorSchema,
 				},
 			},
 		},
