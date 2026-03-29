@@ -47,12 +47,7 @@
 		"vitest": "^2.1.8"
 	},
 	"pnpm": {
-		"onlyBuiltDependencies": [
-			"@biomejs/biome",
-			"esbuild",
-			"mongodb-memory-server",
-			"@swc/core"
-		]
+		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "mongodb-memory-server", "@swc/core"]
 	},
 	"engines": {
 		"node": ">=20.0.0"
