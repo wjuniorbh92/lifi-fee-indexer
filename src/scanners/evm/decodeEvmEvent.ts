@@ -1,4 +1,5 @@
 import type { NormalizedEvent } from '../../config/types.js';
+import { normalizeAddress } from '../../utils/normalizeAddress.js';
 
 export function decodeEvmEvent(
 	args: {
@@ -23,7 +24,7 @@ export function decodeEvmEvent(
 		transactionHash,
 		logIndex,
 		token: args._token.toLowerCase(),
-		integrator: args._integrator.toLowerCase(),
+		integrator: normalizeAddress(args._integrator),
 		integratorFee: args._integratorFee.toString(),
 		lifiFee: args._lifiFee.toString(),
 		timestamp,

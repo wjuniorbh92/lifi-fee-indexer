@@ -1,0 +1,71 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: lifi-fee-indexer
+    environment:
+      - TS_AUTHKEY=${TS_AUTH_KEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SERVE_CONFIG=/config/serve.json
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./ts-serve-config.json:/config/serve.json:ro
+    networks:
+      - internal
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file:
+      - .env.prod
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/lifi-fee-indexer?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    network_mode: 'service:tailscale'
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:3000/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mongosh',
+          '-u',
+          '${MONGO_USER}',
+          '-p',
+          '${MONGO_PASSWORD}',
+          '--eval',
+          'db.adminCommand("ping")',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  tailscale-state:
+
+networks:
+  internal:
+    driver: bridge

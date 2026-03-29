@@ -19,4 +19,7 @@ export interface ChainScanner {
 	 * Cursor-based chains may also return `nextCursor` metadata.
 	 */
 	getEvents(from: number, to: number): Promise<ScanBatchResult>;
+
+	/** Optional: set resume cursor for cursor-based chains (e.g. Stellar). */
+	setCursor?(cursor: string | undefined): void;
 }

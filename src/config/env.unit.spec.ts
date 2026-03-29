@@ -28,7 +28,7 @@ describe('loadEnv', () => {
 		expect(env.PORT).toBe(3000);
 		expect(env.HOST).toBe('0.0.0.0');
 		expect(env.LOG_LEVEL).toBe('info');
-		expect(env.STELLAR_HORIZON_URL).toBe('https://horizon-testnet.stellar.org');
+		expect(env.STELLAR_HORIZON_URL).toBe('https://soroban-testnet.stellar.org');
 	});
 
 	it('coerces numeric string values', async () => {

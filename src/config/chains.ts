@@ -1,6 +1,8 @@
 import type { Env } from './env.js';
 import type { ChainConfig } from './types.js';
 
+const POLYGON_CONFIRMATION_DEPTH = 64;
+
 export function buildChainConfigs(env: Env): ChainConfig[] {
 	const chains: ChainConfig[] = [
 		{
@@ -10,7 +12,7 @@ export function buildChainConfigs(env: Env): ChainConfig[] {
 			contractAddress: env.FEE_COLLECTOR_ADDRESS,
 			startBlock: env.EVM_START_BLOCK,
 			batchSize: env.BATCH_SIZE,
-			confirmations: 64,
+			confirmations: POLYGON_CONFIRMATION_DEPTH,
 			type: 'evm',
 		},
 	];
