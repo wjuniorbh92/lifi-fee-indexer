@@ -1,85 +1,134 @@
-import { Address, type xdr } from '@stellar/stellar-sdk';
+import { Address, scValToNative, type xdr } from '@stellar/stellar-sdk';
 import type { rpc } from '@stellar/stellar-sdk';
 import type { NormalizedEvent } from '../../config/types.js';
 
-const MIN_TOPIC_LENGTH = 3;
+const NATIVE_TOKEN_ID = 'native';
+const MIN_FEE_TOPIC_LENGTH = 2;
 
 /**
  * Decode a Stellar Soroban contract event into a NormalizedEvent.
  *
- * Expected event shape (FeesCollected-like):
- *   topic[0] = Symbol("FeesCollected")
- *   topic[1] = Address (token)
- *   topic[2] = Address (integrator)
- *   value    = Map { "integrator_fee": i128, "lifi_fee": i128 }
+ * Supports the real testnet oracle contract (CDLZFC3...):
+ *   "fee" events:
+ *     topic[0] = Symbol("fee")
+ *     topic[1] = Address (account paying the fee)
+ *     value    = i128 (fee amount in stroops)
  *
- * This is a demo contract on Stellar testnet — not the actual LI.FI FeeCollector.
+ *   "transfer" events (SEP-0041):
+ *     topic[0] = Symbol("transfer")
+ *     topic[1] = Address (from)
+ *     topic[2] = Address (to)
+ *     value    = i128 (amount)
  */
 export function decodeStellarEvent(event: rpc.Api.EventResponse, chainId: string): NormalizedEvent {
-	const { topic, value, ledger, txHash, pagingToken, ledgerClosedAt } = event;
+	const { topic, value, ledger, txHash, id, ledgerClosedAt, contractId } = event;
 
-	if (topic.length < MIN_TOPIC_LENGTH) {
-		throw new Error(`Unexpected topic length ${topic.length} in event ${pagingToken}`);
+	const eventName = scValToNative(topic[0]) as string;
+
+	if (eventName === 'fee') {
+		return decodeFeeEvent(topic, value, ledger, txHash, id, ledgerClosedAt, chainId);
 	}
 
-	const token = Address.fromScVal(topic[1]).toString();
-	const integrator = Address.fromScVal(topic[2]).toString();
+	if (eventName === 'transfer') {
+		return decodeTransferEvent(
+			topic,
+			value,
+			ledger,
+			txHash,
+			id,
+			ledgerClosedAt,
+			chainId,
+			contractId,
+		);
+	}
 
-	const valueMap = parseValueMap(value);
-	const integratorFee = valueMap.get('integrator_fee') ?? '0';
-	const lifiFee = valueMap.get('lifi_fee') ?? '0';
+	throw new Error(`Unknown event type "${eventName}" in event ${id}`);
+}
+
+/**
+ * Decode a "fee" event from the oracle contract.
+ *   topic[0] = Symbol("fee")
+ *   topic[1] = Address (payer)
+ *   value    = i128 (fee amount)
+ */
+function decodeFeeEvent(
+	topic: xdr.ScVal[],
+	value: xdr.ScVal,
+	ledger: number,
+	txHash: string,
+	eventId: string,
+	ledgerClosedAt: string,
+	chainId: string,
+): NormalizedEvent {
+	if (topic.length < MIN_FEE_TOPIC_LENGTH) {
+		throw new Error(`Fee event has ${topic.length} topics, expected >= ${MIN_FEE_TOPIC_LENGTH}`);
+	}
+
+	const integrator = Address.fromScVal(topic[1]).toString();
+	const amount = (scValToNative(value) as bigint).toString();
 
 	return {
 		chainId,
 		blockNumber: ledger,
 		transactionHash: txHash,
-		logIndex: logIndexFromPagingToken(pagingToken),
-		token,
+		logIndex: logIndexFromEventId(eventId),
+		token: NATIVE_TOKEN_ID,
 		integrator,
-		integratorFee,
-		lifiFee,
+		integratorFee: amount,
+		lifiFee: '0',
+		timestamp: new Date(ledgerClosedAt),
+	};
+}
+
+const MIN_TRANSFER_TOPIC_LENGTH = 3;
+
+/**
+ * Decode a "transfer" event (SEP-0041 Token Interface).
+ *   topic[0] = Symbol("transfer")
+ *   topic[1] = Address (from)
+ *   topic[2] = Address (to)
+ *   value    = i128 (amount)
+ */
+function decodeTransferEvent(
+	topic: xdr.ScVal[],
+	value: xdr.ScVal,
+	ledger: number,
+	txHash: string,
+	eventId: string,
+	ledgerClosedAt: string,
+	chainId: string,
+	contractId?: { toString(): string },
+): NormalizedEvent {
+	if (topic.length < MIN_TRANSFER_TOPIC_LENGTH) {
+		throw new Error(
+			`Transfer event has ${topic.length} topics, expected >= ${MIN_TRANSFER_TOPIC_LENGTH}`,
+		);
+	}
+
+	const to = Address.fromScVal(topic[2]).toString();
+	const amount = (scValToNative(value) as bigint).toString();
+	const token = contractId?.toString() ?? NATIVE_TOKEN_ID;
+
+	return {
+		chainId,
+		blockNumber: ledger,
+		transactionHash: txHash,
+		logIndex: logIndexFromEventId(eventId),
+		token,
+		integrator: to,
+		integratorFee: amount,
+		lifiFee: '0',
 		timestamp: new Date(ledgerClosedAt),
 	};
 }
 
 /**
- * Parse the event value as a Map of string → string(i128).
- * Expects an ScMap encoding. Throws if the value is not a map.
- */
-function parseValueMap(scVal: xdr.ScVal): Map<string, string> {
-	const map = scVal.map();
-	if (!map) {
-		throw new Error('Expected ScMap value encoding but received a non-map ScVal');
-	}
-
-	const result = new Map<string, string>();
-	for (const entry of map) {
-		const key = entry.key().sym().toString();
-		const val = i128ToString(entry.val());
-		result.set(key, val);
-	}
-
-	return result;
-}
-
-/**
- * Convert an ScVal i128 to a decimal string.
- */
-function i128ToString(scVal: xdr.ScVal): string {
-	const i128Parts = scVal.i128();
-	const lo = BigInt(i128Parts.lo().toXDR().readBigUInt64BE(0));
-	const hi = BigInt(i128Parts.hi().toXDR().readBigInt64BE(0));
-	const value = (hi << 64n) | lo;
-	return value.toString();
-}
-
-/**
  * Extract a numeric log index from a Stellar paging token.
- * Paging tokens follow the pattern: "{ledger}-{txIndex}-{eventIndex}"
- * or are numeric. We use the last segment as the logIndex for dedup.
+ * Paging tokens are numeric IDs like "0007508891323596800-0000000001".
+ * We use the last segment as the logIndex for dedup.
  */
-function logIndexFromPagingToken(pagingToken: string): number {
-	const parts = pagingToken.split('-');
+function logIndexFromEventId(eventId: string): number {
+	const parts = eventId.split('-');
 	const lastPart = parts[parts.length - 1];
 	const parsed = Number(lastPart);
 	return Number.isFinite(parsed) ? parsed : 0;

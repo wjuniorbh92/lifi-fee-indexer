@@ -77,10 +77,10 @@ pnpm server    # API only
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MONGODB_URI` | Yes | `mongodb://localhost:27017/lifi-fee-indexer` | MongoDB connection string |
-| `POLYGON_RPC_URL` | Yes | `https://polygon-rpc.com` | Polygon JSON-RPC endpoint |
+| `POLYGON_RPC_URL` | Yes | `https://polygon-bor-rpc.publicnode.com` | Polygon JSON-RPC endpoint |
 | `FEE_COLLECTOR_ADDRESS` | Yes | `0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9` | FeeCollector contract address |
-| `STELLAR_HORIZON_URL` | No | `https://horizon-testnet.stellar.org` | Stellar RPC URL |
-| `STELLAR_INTEGRATOR_ADDRESS` | No | _(empty)_ | Stellar integrator address (enables Stellar scanner) |
+| `STELLAR_HORIZON_URL` | No | `https://soroban-testnet.stellar.org` | Stellar Soroban RPC URL |
+| `STELLAR_INTEGRATOR_ADDRESS` | No | _(empty)_ | Stellar contract address (enables Stellar scanner) |
 | `BATCH_SIZE` | No | `2000` | Blocks per batch |
 | `EVM_START_BLOCK` | No | `78600000` | Starting block for Polygon scanner |
 | `POLL_INTERVAL_MS` | No | `10000` | Polling interval between scan cycles |
@@ -90,7 +90,7 @@ pnpm server    # API only
 
 ### RPC Note
 
-Block 78,600,000 is recent Polygon data (~late 2025). Free RPCs like `polygon-rpc.com` can serve it. For faster initial sync, use Alchemy, Infura, or Ankr free tier and set `POLYGON_RPC_URL` accordingly.
+Block 78,600,000 is recent Polygon data (~late 2025). Free RPCs like `polygon-bor-rpc.publicnode.com` can serve it. For faster initial sync, use Alchemy, Infura, or Ankr free tier and set `POLYGON_RPC_URL` accordingly.
 
 ## API
 
@@ -155,6 +155,7 @@ Query indexed fee collection events.
 pnpm test          # all tests (unit + integration)
 pnpm test:unit     # unit tests only
 pnpm test:int      # integration tests (uses mongodb-memory-server)
+pnpm test:e2e      # E2E tests (hits real Polygon mainnet + Stellar testnet RPCs)
 pnpm check         # biome lint + format check
 pnpm check:types   # tsc type check
 ```
@@ -174,11 +175,19 @@ pnpm check:types   # tsc type check
 | **Cursor-first persistence** | `lastSyncedBlock` advances ONLY after successful write |
 | **SWC for Vitest** | esbuild doesn't support `emitDecoratorMetadata` (required by Typegoose) |
 
-## Stellar Testnet Caveats
+## Stellar Testnet
 
-- The Stellar scanner uses a **demo contract** on testnet, not the actual LI.FI FeeCollector
+The Stellar scanner connects to a real **oracle/price-feed contract** (`CDLZFC3...`) on Stellar testnet. It decodes two event types:
+
+- **`fee` events**: `topic[0]=Symbol("fee")`, `topic[1]=Address(payer)`, `value=i128(amount)`
+- **`transfer` events**: SEP-0041 Token Interface format
+
+### Caveats
+
 - Stellar testnet has a **7-day event retention limit** -- events older than 7 days are unavailable
-- Testnet resets approximately quarterly, which clears all data
+- Testnet resets approximately quarterly, which clears all data and may change contract IDs
+- For production Stellar mainnet, a paid RPC provider (QuickNode, Blockdaemon) would be needed
+- Historical backfill beyond 7 days requires Galexie or Stellar Ingest SDK
 - To enable Stellar scanning, set `STELLAR_INTEGRATOR_ADDRESS` in `.env`
 
 ## Project Structure

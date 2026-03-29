@@ -24,22 +24,17 @@ export async function getStellarEvents(
 	let currentCursor = cursor;
 	let lastCursor = currentCursor ?? '';
 
-	while (true) {
-		const request: rpc.Server.GetEventsRequest = {
-			filters: [
-				{
-					type: 'contract',
-					contractIds: [config.contractAddress],
-				},
-			],
-			limit: EVENTS_LIMIT,
-		};
+	const filters: rpc.Api.EventFilter[] = [
+		{
+			type: 'contract',
+			contractIds: [config.contractAddress],
+		},
+	];
 
-		if (currentCursor) {
-			request.cursor = currentCursor;
-		} else {
-			request.startLedger = fromLedger;
-		}
+	while (true) {
+		const request: rpc.Api.GetEventsRequest = currentCursor
+			? { filters, cursor: currentCursor, limit: EVENTS_LIMIT }
+			: { filters, startLedger: fromLedger, limit: EVENTS_LIMIT };
 
 		const response = await server.getEvents(request);
 
@@ -47,11 +42,8 @@ export async function getStellarEvents(
 			if (event.ledger > toLedger) {
 				return { events: allEvents, cursor: lastCursor };
 			}
-			if (event.ledger < fromLedger) {
-				continue;
-			}
 			allEvents.push(event);
-			lastCursor = event.pagingToken;
+			lastCursor = event.id;
 		}
 
 		if (response.events.length < EVENTS_LIMIT) {

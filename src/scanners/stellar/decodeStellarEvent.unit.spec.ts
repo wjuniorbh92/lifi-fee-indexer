@@ -1,115 +1,149 @@
-import { Address, Keypair, nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { Address, Contract, Keypair, nativeToScVal } from '@stellar/stellar-sdk';
 import type { rpc } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 import { decodeStellarEvent } from './decodeStellarEvent.js';
 
 const MOCK_LEDGER = 500100;
 const MOCK_DECODE_LEDGER = 600200;
-const MOCK_INTEGRATOR_FEE = 1000000n;
-const MOCK_LIFI_FEE = 50000n;
 const MOCK_LOG_INDEX = 7;
-const MOCK_NUMERIC_PAGING_TOKEN = 12345;
 
-function makeScAddress(publicKey: string): xdr.ScVal {
+function makeScAddress(publicKey: string) {
 	return Address.fromString(publicKey).toScVal();
 }
 
-function makeValueMap(integratorFee: bigint, lifiFee: bigint): xdr.ScVal {
-	return xdr.ScVal.scvMap([
-		new xdr.ScMapEntry({
-			key: nativeToScVal('integrator_fee', { type: 'symbol' }),
-			val: nativeToScVal(integratorFee, { type: 'i128' }),
-		}),
-		new xdr.ScMapEntry({
-			key: nativeToScVal('lifi_fee', { type: 'symbol' }),
-			val: nativeToScVal(lifiFee, { type: 'i128' }),
-		}),
-	]);
-}
-
-function makeMockEvent(overrides: Partial<rpc.Api.EventResponse> = {}): rpc.Api.EventResponse {
-	const tokenKey = Keypair.random().publicKey();
-	const integratorKey = Keypair.random().publicKey();
+function makeFeeEvent(overrides: Partial<rpc.Api.EventResponse> = {}): rpc.Api.EventResponse {
+	const payerKey = Keypair.random().publicKey();
 
 	return {
-		id: 'test-event-id',
+		id: '0007508891323596800-0000000001',
 		type: 'contract' as const,
 		ledger: MOCK_LEDGER,
 		ledgerClosedAt: '2026-01-15T12:00:00Z',
-		pagingToken: `${MOCK_LEDGER}-1-3`,
 		inSuccessfulContractCall: true,
 		txHash: 'abc123def456',
+		topic: [nativeToScVal('fee', { type: 'symbol' }), makeScAddress(payerKey)],
+		value: nativeToScVal(200n, { type: 'i128' }),
+		...overrides,
+	} as rpc.Api.EventResponse;
+}
+
+function makeTransferEvent(overrides: Partial<rpc.Api.EventResponse> = {}): rpc.Api.EventResponse {
+	const fromKey = Keypair.random().publicKey();
+	const toKey = Keypair.random().publicKey();
+
+	return {
+		id: '0007508891323596800-0000000002',
+		type: 'contract' as const,
+		ledger: MOCK_LEDGER,
+		ledgerClosedAt: '2026-01-15T13:00:00Z',
+		inSuccessfulContractCall: true,
+		txHash: 'tx-transfer-abc',
+		contractId: new Contract('CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'),
 		topic: [
-			nativeToScVal('FeesCollected', { type: 'symbol' }),
-			makeScAddress(tokenKey),
-			makeScAddress(integratorKey),
+			nativeToScVal('transfer', { type: 'symbol' }),
+			makeScAddress(fromKey),
+			makeScAddress(toKey),
 		],
-		value: makeValueMap(MOCK_INTEGRATOR_FEE, MOCK_LIFI_FEE),
+		value: nativeToScVal(5000n, { type: 'i128' }),
 		...overrides,
 	} as rpc.Api.EventResponse;
 }
 
 describe('decodeStellarEvent', () => {
-	it('decodes a valid FeesCollected event', () => {
-		const tokenKey = Keypair.random().publicKey();
-		const integratorKey = Keypair.random().publicKey();
+	describe('fee events', () => {
+		it('decodes a fee event with payer address and amount', () => {
+			const payerKey = Keypair.random().publicKey();
+			const event = makeFeeEvent({
+				topic: [nativeToScVal('fee', { type: 'symbol' }), makeScAddress(payerKey)],
+				value: nativeToScVal(5000n, { type: 'i128' }),
+				ledger: MOCK_DECODE_LEDGER,
+				txHash: 'tx-hash-abc',
+				id: '0007508891323596800-0000000005',
+				ledgerClosedAt: '2026-03-01T10:30:00Z',
+			});
 
-		const event = makeMockEvent({
-			topic: [
-				nativeToScVal('FeesCollected', { type: 'symbol' }),
-				makeScAddress(tokenKey),
-				makeScAddress(integratorKey),
-			],
-			value: makeValueMap(5000000n, 100000n),
-			ledger: MOCK_DECODE_LEDGER,
-			txHash: 'tx-hash-abc',
-			pagingToken: `${MOCK_DECODE_LEDGER}-2-5`,
-			ledgerClosedAt: '2026-03-01T10:30:00Z',
+			const result = decodeStellarEvent(event, 'stellar-testnet');
+
+			expect(result).toEqual({
+				chainId: 'stellar-testnet',
+				blockNumber: MOCK_DECODE_LEDGER,
+				transactionHash: 'tx-hash-abc',
+				logIndex: 5,
+				token: 'native',
+				integrator: payerKey,
+				integratorFee: '5000',
+				lifiFee: '0',
+				timestamp: new Date('2026-03-01T10:30:00Z'),
+			});
 		});
 
-		const result = decodeStellarEvent(event, 'stellar-testnet');
+		it('stores fee amount as decimal string', () => {
+			const event = makeFeeEvent({
+				value: nativeToScVal(999999999999999999n, { type: 'i128' }),
+			});
 
-		expect(result).toEqual({
-			chainId: 'stellar-testnet',
-			blockNumber: MOCK_DECODE_LEDGER,
-			transactionHash: 'tx-hash-abc',
-			logIndex: 5,
-			token: tokenKey,
-			integrator: integratorKey,
-			integratorFee: '5000000',
-			lifiFee: '100000',
-			timestamp: new Date('2026-03-01T10:30:00Z'),
+			const result = decodeStellarEvent(event, 'stellar-testnet');
+			expect(result.integratorFee).toBe('999999999999999999');
+			expect(result.lifiFee).toBe('0');
+		});
+
+		it('sets token to native for fee events', () => {
+			const event = makeFeeEvent();
+			const result = decodeStellarEvent(event, 'stellar-testnet');
+			expect(result.token).toBe('native');
 		});
 	});
 
-	it('extracts logIndex from paging token last segment', () => {
-		const event = makeMockEvent({ pagingToken: `${MOCK_LEDGER}-0-${MOCK_LOG_INDEX}` });
-		const result = decodeStellarEvent(event, 'stellar-testnet');
-		expect(result.logIndex).toBe(MOCK_LOG_INDEX);
+	describe('transfer events', () => {
+		it('decodes a transfer event with to address and contract token', () => {
+			const toKey = Keypair.random().publicKey();
+			const fromKey = Keypair.random().publicKey();
+			const event = makeTransferEvent({
+				topic: [
+					nativeToScVal('transfer', { type: 'symbol' }),
+					makeScAddress(fromKey),
+					makeScAddress(toKey),
+				],
+				value: nativeToScVal(10000n, { type: 'i128' }),
+				contractId: new Contract('CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'),
+			});
+
+			const result = decodeStellarEvent(event, 'stellar-testnet');
+
+			expect(result.integrator).toBe(toKey);
+			expect(result.integratorFee).toBe('10000');
+			expect(result.token).toBe('CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC');
+		});
 	});
 
-	it('handles numeric paging token', () => {
-		const event = makeMockEvent({ pagingToken: String(MOCK_NUMERIC_PAGING_TOKEN) });
-		const result = decodeStellarEvent(event, 'stellar-testnet');
-		expect(result.logIndex).toBe(MOCK_NUMERIC_PAGING_TOKEN);
-	});
+	describe('error handling', () => {
+		it('throws on unknown event type', () => {
+			const event = makeFeeEvent({
+				topic: [
+					nativeToScVal('unknown_event', { type: 'symbol' }),
+					makeScAddress(Keypair.random().publicKey()),
+				],
+			});
 
-	it('throws on events with fewer than 3 topics', () => {
-		const event = makeMockEvent({
-			topic: [nativeToScVal('FeesCollected', { type: 'symbol' })],
-			pagingToken: `${MOCK_LEDGER}-0-1`,
+			expect(() => decodeStellarEvent(event, 'stellar-testnet')).toThrow(
+				'Unknown event type "unknown_event"',
+			);
 		});
 
-		expect(() => decodeStellarEvent(event, 'stellar-testnet')).toThrow('Unexpected topic length 1');
-	});
+		it('throws on fee event with too few topics', () => {
+			const event = makeFeeEvent({
+				topic: [nativeToScVal('fee', { type: 'symbol' })],
+			});
 
-	it('stores fees as decimal strings (not hex)', () => {
-		const event = makeMockEvent({
-			value: makeValueMap(999999999999999999n, 123456789012345678n),
+			expect(() => decodeStellarEvent(event, 'stellar-testnet')).toThrow('Fee event has 1 topics');
 		});
 
-		const result = decodeStellarEvent(event, 'stellar-testnet');
-		expect(result.integratorFee).toBe('999999999999999999');
-		expect(result.lifiFee).toBe('123456789012345678');
+		it('extracts logIndex from paging token last segment', () => {
+			const event = makeFeeEvent({
+				id: `0007508891323596800-000000000${MOCK_LOG_INDEX}`,
+			});
+			const result = decodeStellarEvent(event, 'stellar-testnet');
+			expect(result.logIndex).toBe(MOCK_LOG_INDEX);
+		});
 	});
 });

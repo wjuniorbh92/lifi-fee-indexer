@@ -8,12 +8,15 @@
 	"scripts": {
 		"build": "tsc",
 		"start": "node dist/index.js",
-		"dev": "tsx watch src/index.ts",
-		"scanner": "tsx src/scanner.ts",
-		"server": "tsx src/server.ts",
+		"dev": "pnpm build && node --watch dist/index.js",
+		"dev:scanner": "pnpm build && node --watch dist/scanner.js",
+		"dev:server": "pnpm build && node --watch dist/server.js",
+		"scanner": "node dist/scanner.js",
+		"server": "node dist/server.js",
 		"test": "vitest --run",
 		"test:unit": "vitest --run --reporter=verbose unit.spec",
 		"test:int": "vitest --run --reporter=verbose int.spec",
+		"test:e2e": "vitest --run --reporter=verbose --config vitest.e2e.config.ts",
 		"test:cov": "vitest --run --coverage",
 		"check": "biome check .",
 		"check:write": "biome check --write .",
@@ -21,8 +24,9 @@
 	},
 	"dependencies": {
 		"@fastify/rate-limit": "^10.3.0",
-		"@stellar/stellar-sdk": "^13.1.0",
+		"@stellar/stellar-sdk": "^14.6.1",
 		"@typegoose/typegoose": "^12.8.0",
+		"dotenv": "^17.3.1",
 		"fastify": "^5.2.0",
 		"mongoose": "^8.9.0",
 		"pino": "^9.5.0",
@@ -43,7 +47,12 @@
 		"vitest": "^2.1.8"
 	},
 	"pnpm": {
-		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "mongodb-memory-server", "@swc/core"]
+		"onlyBuiltDependencies": [
+			"@biomejs/biome",
+			"esbuild",
+			"mongodb-memory-server",
+			"@swc/core"
+		]
 	},
 	"engines": {
 		"node": ">=20.0.0"

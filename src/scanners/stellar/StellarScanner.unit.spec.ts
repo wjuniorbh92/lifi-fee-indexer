@@ -79,7 +79,7 @@ describe('StellarScanner', () => {
 
 	describe('getEvents', () => {
 		it('returns normalized events with nextCursor', async () => {
-			const rawEvent = { ledger: MOCK_EVENT_LEDGER, pagingToken: `${MOCK_EVENT_LEDGER}-0-1` };
+			const rawEvent = { ledger: MOCK_EVENT_LEDGER, id: `${MOCK_EVENT_LEDGER}-0-1` };
 			const normalizedEvent = makeEvent();
 
 			mockGetStellarEvents.mockResolvedValue({

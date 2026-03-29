@@ -3,7 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
 	MONGODB_URI: z.string().min(1),
 	POLYGON_RPC_URL: z.string().url(),
-	STELLAR_HORIZON_URL: z.string().url().default('https://horizon-testnet.stellar.org'),
+	STELLAR_HORIZON_URL: z.string().url().default('https://soroban-testnet.stellar.org'),
 	FEE_COLLECTOR_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 	STELLAR_INTEGRATOR_ADDRESS: z.string().default(''),
 	BATCH_SIZE: z.coerce.number().int().min(1).max(10_000).default(2000),
