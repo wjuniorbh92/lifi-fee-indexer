@@ -6,6 +6,7 @@ import { initScanners } from './core/initScanners.js';
 import { createLogger } from './utils/logger.js';
 
 const FATAL_EXIT_CODE = 1;
+const FATAL_ERROR_PREFIX = 'Fatal error:';
 
 async function main(): Promise<void> {
 	const env = loadEnv();
@@ -17,6 +18,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-	console.error('Fatal error:', err);
+	console.error(FATAL_ERROR_PREFIX, err);
 	process.exit(FATAL_EXIT_CODE);
 });

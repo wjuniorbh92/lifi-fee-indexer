@@ -3,16 +3,19 @@ import 'dotenv/config';
 import { buildServer } from './api/server.js';
 import { loadEnv } from './config/env.js';
 import { runAllScanners } from './core/ScannerOrchestrator.js';
-import { registerShutdownHandler } from './core/helpers/gracefulShutdown.js';
+import { initShutdownHandler, registerShutdownHandler } from './core/helpers/gracefulShutdown.js';
 import { initScanners } from './core/initScanners.js';
 import { buildScannerMap } from './core/scannerRegistry.js';
 import { createLogger } from './utils/logger.js';
 
 const FATAL_EXIT_CODE = 1;
+const FATAL_ERROR_PREFIX = 'Fatal error:';
 
 async function main(): Promise<void> {
 	const env = loadEnv();
 	const logger = createLogger(env.LOG_LEVEL);
+
+	initShutdownHandler(logger);
 
 	const scanners = await initScanners(env, logger);
 	const scannerMap = buildScannerMap(env);
@@ -30,6 +33,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-	console.error('Fatal error:', err);
+	console.error(FATAL_ERROR_PREFIX, err);
 	process.exit(FATAL_EXIT_CODE);
 });

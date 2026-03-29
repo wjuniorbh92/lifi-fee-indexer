@@ -1,6 +1,7 @@
 import { Address, scValToNative, type xdr } from '@stellar/stellar-sdk';
 import type { rpc } from '@stellar/stellar-sdk';
 import type { NormalizedEvent } from '../../config/types.js';
+import { normalizeAddress } from '../../utils/normalizeAddress.js';
 
 const NATIVE_TOKEN_ID = 'native';
 const MIN_FEE_TOPIC_LENGTH = 2;
@@ -111,7 +112,7 @@ function decodeTransferEvent(
 
 	const to = Address.fromScVal(topic[2]).toString();
 	const amount = extractTransferAmount(value, eventId);
-	const token = contractId?.toString() ?? NATIVE_TOKEN_ID;
+	const token = normalizeAddress(contractId?.toString() ?? NATIVE_TOKEN_ID);
 
 	return {
 		chainId,

@@ -62,7 +62,7 @@ function pickBaseFilters(
 ): Record<string, unknown> {
 	const filter: Record<string, unknown> = {};
 	if (chainId) filter.chainId = chainId;
-	if (token) filter.token = token.toLowerCase();
+	if (token) filter.token = normalizeAddress(token);
 	if (fromBlock || toBlock) {
 		const blockFilter: Record<string, number> = {};
 		if (fromBlock) blockFilter.$gte = Number(fromBlock);
