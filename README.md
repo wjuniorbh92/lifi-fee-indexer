@@ -17,6 +17,7 @@ Multi-chain event indexer for the LI.FI `FeeCollector` smart contract. Scrapes `
          | ScannerOrchestrator |      |    Fastify API    |
          |  (per-chain loop)   |      | /events  /health  |
          +--------+---------+         | /events/fetch     |
+                  |                    | /docs  /metrics   |
                   |                    +--------+----------+
                   |                             |
          +--------v--------+           on-demand fetch
@@ -229,10 +230,19 @@ curl -X POST http://localhost:3000/events/fetch \
 **Notes:**
 - Does **not** update `SyncState` — the background scanner owns that watermark
 - Deduplication is handled by the existing unique index; when the scanner catches up, duplicates are silently skipped
-- Returns `400` for unknown chains, invalid ranges, or ranges exceeding 10,000 blocks
-- Returns `502` if the RPC is unreachable after retries
+- Returns `400` with `UNKNOWN_CHAIN`, `BLOCK_RANGE_INVALID`, or `BLOCK_RANGE_TOO_LARGE` error codes
+- Returns `502` with `RPC_FETCH_FAILED` if the RPC is unreachable after retries
+- Returns `500` with `DB_WRITE_FAILED` if events cannot be stored
 
 ### `GET /health`
+
+Returns service health with per-chain staleness detection. A chain is marked `"stale"` if its `updatedAt` is older than `3 × POLL_INTERVAL_MS` (default: 30 seconds).
+
+| Status | Meaning | HTTP Code |
+|--------|---------|-----------|
+| `ok` | DB connected, all chains syncing | 200 |
+| `degraded` | DB connected, one or more chains stale | 200 |
+| `error` | DB disconnected or query failed | 503 |
 
 ```json
 {
@@ -242,15 +252,55 @@ curl -X POST http://localhost:3000/events/fetch \
     {
       "chainId": "polygon",
       "lastSyncedBlock": 78650000,
-      "updatedAt": "2026-03-28T14:00:00.000Z"
+      "updatedAt": "2026-03-28T14:00:00.000Z",
+      "status": "syncing"
     },
     {
       "chainId": "stellar-testnet",
       "lastSyncedBlock": 1748900,
-      "updatedAt": "2026-03-28T14:00:05.000Z"
+      "updatedAt": "2026-03-28T14:00:05.000Z",
+      "status": "syncing"
     }
   ]
 }
+```
+
+### `GET /docs`
+
+Interactive Swagger UI for exploring the API. The OpenAPI 3.0 JSON spec is available at `/docs/json`.
+
+### `GET /metrics`
+
+Prometheus-format metrics for monitoring.
+
+```text
+scanner_batches_total{chainId="polygon"} 42
+scanner_events_inserted_total{chainId="polygon"} 1500
+scanner_errors_total{chainId="polygon",type="rpc"} 5
+scanner_batch_duration_seconds_bucket{chainId="polygon",le="1"} 20
+api_requests_total{route="/events",method="GET",status="200"} 100
+```
+
+### Error Responses
+
+All error responses use a consistent structured format:
+
+```json
+{
+  "error": "Human-readable error message",
+  "code": "MACHINE_READABLE_CODE"
+}
+```
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `BLOCK_RANGE_INVALID` | 400 | `fromBlock > toBlock` |
+| `BLOCK_RANGE_TOO_LARGE` | 400 | Range exceeds 10,000 blocks |
+| `UNKNOWN_CHAIN` | 400 | Chain not configured |
+| `RPC_FETCH_FAILED` | 502 | RPC unreachable after retries |
+| `DB_WRITE_FAILED` | 500 | MongoDB write failed |
+| `NOT_FOUND` | 404 | Route not found |
+| `FORBIDDEN` | 403 | IP banned (repeated 404 abuse) |
 ```
 
 ## Testing
@@ -301,10 +351,8 @@ Areas for future improvement and features not fully implemented:
 - **Multi-chain EVM expansion** — Add Arbitrum, Optimism, Base, etc. Each new chain only needs a `ChainConfig` entry; the `ChainScanner` interface and orchestrator work unchanged
 - **Stellar mainnet** — Replace testnet RPC with a paid provider (QuickNode, Blockdaemon); the 7-day event retention limit on testnet doesn't apply to archive-enabled mainnet nodes
 - **Historical backfill for Stellar** — For events older than the RPC retention window, integrate Galexie or Stellar Ingest SDK to replay historical ledgers into MongoDB
-- **Observability** — Add Prometheus metrics for events indexed per chain, scan lag (latest block vs. last synced), RPC error rates, and batch processing duration
 - **Alerting** — Trigger alerts when scan lag exceeds a configurable threshold or when RPC error rate spikes
 - **API authentication** — Add API key or JWT authentication to the REST endpoints for production use
-- **Cursor-based pagination** — Replace offset-based pagination in `GET /events` with cursor-based pagination for more efficient deep queries
 - **WebSocket / SSE streaming** — Real-time event feed for consumers that need instant notification of new fee collection events
 - **Horizontal scaling** — Partition chains across multiple scanner instances with a distributed lock (e.g. Redis-based) to prevent duplicate scanning
 
@@ -323,11 +371,15 @@ src/
     SyncStateManager.ts      # Cursor persistence (load/save)
     helpers/                 # retry, sleep, gracefulShutdown
   api/
-    server.ts               # Fastify setup + rate limiting
-    routes/                  # /events, /health endpoints
-  errors/       # ScannerError, RpcError with error codes
-  utils/        # Pino logger
+    server.ts               # Fastify setup + Swagger + rate limiting
+    routes/                  # /events, /health, /events/fetch endpoints
+    helpers/                 # Structured error responses (sendError, ApiErrorCode)
+    middleware/              # Bot ban (repeated 404 detection)
+  errors/       # ErrorCode, ScannerError, RpcError, mongoErrors (barrel exports)
+  utils/        # Pino logger, Prometheus metrics, address normalization
   index.ts      # Entry point: scanner + API
   scanner.ts    # Entry point: scanner only
   server.ts     # Entry point: API only
+scripts/
+  smoke-test.sh # 38-assertion smoke test suite for live deployments
 ```
