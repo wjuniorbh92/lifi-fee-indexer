@@ -1,6 +1,7 @@
 import rateLimit from '@fastify/rate-limit';
 import fastify from 'fastify';
 import type pino from 'pino';
+import { createBotBanHook } from './middleware/botBan.js';
 import { eventsRoute } from './routes/events.js';
 import { healthRoute } from './routes/health.js';
 
@@ -19,6 +20,10 @@ export async function buildServer(logger?: pino.Logger) {
 		trustProxy: true,
 		bodyLimit: MAX_BODY_SIZE,
 	});
+
+	const botBan = createBotBanHook();
+	app.addHook('onRequest', botBan.onRequest);
+	app.setNotFoundHandler(botBan.notFoundHandler);
 
 	await app.register(rateLimit, {
 		max: RATE_LIMIT_MAX,
