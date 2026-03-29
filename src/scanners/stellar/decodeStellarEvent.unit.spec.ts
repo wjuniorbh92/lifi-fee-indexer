@@ -117,7 +117,7 @@ describe('decodeStellarEvent', () => {
 	});
 
 	describe('error handling', () => {
-		it('throws on unknown event type', () => {
+		it('returns undefined for unknown event types', () => {
 			const event = makeFeeEvent({
 				topic: [
 					nativeToScVal('unknown_event', { type: 'symbol' }),
@@ -125,9 +125,7 @@ describe('decodeStellarEvent', () => {
 				],
 			});
 
-			expect(() => decodeStellarEvent(event, 'stellar-testnet')).toThrow(
-				'Unknown event type "unknown_event"',
-			);
+			expect(decodeStellarEvent(event, 'stellar-testnet')).toBeUndefined();
 		});
 
 		it('throws on fee event with too few topics', () => {
@@ -143,7 +141,7 @@ describe('decodeStellarEvent', () => {
 				id: `0007508891323596800-000000000${MOCK_LOG_INDEX}`,
 			});
 			const result = decodeStellarEvent(event, 'stellar-testnet');
-			expect(result.logIndex).toBe(MOCK_LOG_INDEX);
+			expect(result?.logIndex).toBe(MOCK_LOG_INDEX);
 		});
 	});
 });

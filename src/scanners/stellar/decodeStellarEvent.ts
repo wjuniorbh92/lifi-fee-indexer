@@ -21,7 +21,10 @@ const MIN_FEE_TOPIC_LENGTH = 2;
  *     topic[2] = Address (to)
  *     value    = i128 (amount)
  */
-export function decodeStellarEvent(event: rpc.Api.EventResponse, chainId: string): NormalizedEvent {
+export function decodeStellarEvent(
+	event: rpc.Api.EventResponse,
+	chainId: string,
+): NormalizedEvent | undefined {
 	const { topic, value, ledger, txHash, id, ledgerClosedAt, contractId } = event;
 
 	const eventName = scValToNative(topic[0]) as string;
@@ -43,7 +46,7 @@ export function decodeStellarEvent(event: rpc.Api.EventResponse, chainId: string
 		);
 	}
 
-	throw new Error(`Unknown event type "${eventName}" in event ${id}`);
+	return undefined;
 }
 
 /**
