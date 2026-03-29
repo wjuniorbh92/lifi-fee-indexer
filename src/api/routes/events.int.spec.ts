@@ -60,7 +60,11 @@ describe('GET /events (integration)', () => {
 		expect(response.statusCode).toBe(200);
 		const body = response.json();
 		expect(body.data).toHaveLength(3);
-		expect(body.pagination).toEqual({ total: 3, limit: EXPECTED_DEFAULT_LIMIT, offset: 0 });
+		expect(body.pagination).toEqual({
+			total: 3,
+			limit: EXPECTED_DEFAULT_LIMIT,
+			offset: 0,
+		});
 		// Sorted by blockNumber descending
 		expect(body.data[0].blockNumber).toBe(MOCK_BASE_BLOCK + 2);
 		expect(body.data[2].blockNumber).toBe(MOCK_BASE_BLOCK);
@@ -149,7 +153,10 @@ describe('GET /events (integration)', () => {
 
 	it('matches token filter case-insensitively', async () => {
 		await FeeEventModel.insertMany([
-			makeEvent({ logIndex: 0, token: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174' }),
+			makeEvent({
+				logIndex: 0,
+				token: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+			}),
 		]);
 
 		const app = await buildServer();

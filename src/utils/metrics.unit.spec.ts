@@ -15,8 +15,14 @@ describe('metrics', () => {
 	});
 
 	it('tracks separate label combinations independently', () => {
-		metrics.increment('scanner_errors_total', { chainId: 'polygon', type: 'rpc' });
-		metrics.increment('scanner_errors_total', { chainId: 'stellar-testnet', type: 'decode' });
+		metrics.increment('scanner_errors_total', {
+			chainId: 'polygon',
+			type: 'rpc',
+		});
+		metrics.increment('scanner_errors_total', {
+			chainId: 'stellar-testnet',
+			type: 'decode',
+		});
 
 		const output = metrics.serialize();
 		expect(output).toContain('scanner_errors_total{chainId="polygon",type="rpc"} 1');
@@ -24,8 +30,12 @@ describe('metrics', () => {
 	});
 
 	it('observes a histogram value into correct buckets', () => {
-		metrics.observe('scanner_batch_duration_seconds', 0.5, { chainId: 'polygon' });
-		metrics.observe('scanner_batch_duration_seconds', 2.5, { chainId: 'polygon' });
+		metrics.observe('scanner_batch_duration_seconds', 0.5, {
+			chainId: 'polygon',
+		});
+		metrics.observe('scanner_batch_duration_seconds', 2.5, {
+			chainId: 'polygon',
+		});
 
 		const output = metrics.serialize();
 		expect(output).toContain('scanner_batch_duration_seconds_bucket{chainId="polygon",le="1"} 1');

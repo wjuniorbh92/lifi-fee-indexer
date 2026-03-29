@@ -23,7 +23,13 @@ services:
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/lifi-fee-indexer
     healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/health']
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>r.json()).then(d=>{if(d.status==='error')process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3

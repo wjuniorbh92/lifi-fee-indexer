@@ -55,7 +55,10 @@ describe('botBan middleware', () => {
 			onRequest(request, reply, done);
 
 			expect(reply.status).toHaveBeenCalledWith(403);
-			expect(reply.send).toHaveBeenCalledWith({ error: 'Forbidden' });
+			expect(reply.send).toHaveBeenCalledWith({
+				error: 'Forbidden',
+				code: 'FORBIDDEN',
+			});
 			expect(done).toHaveBeenCalledOnce();
 		});
 
@@ -127,6 +130,17 @@ describe('botBan middleware', () => {
 			notFoundHandler(createMockRequest(MOCK_IP_2), reply);
 
 			expect(reply.status).toHaveBeenCalledWith(404);
+		});
+	});
+
+	describe('destroy', () => {
+		it('clears the cleanup interval', () => {
+			const { destroy } = createBotBanHook();
+			const timersBefore = vi.getTimerCount();
+
+			destroy();
+
+			expect(vi.getTimerCount()).toBeLessThan(timersBefore);
 		});
 	});
 });

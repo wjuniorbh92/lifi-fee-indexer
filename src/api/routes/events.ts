@@ -91,6 +91,29 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 						cursor: { type: 'string' },
 					},
 				},
+				response: {
+					200: {
+						type: 'object',
+						properties: {
+							data: {
+								type: 'array',
+								items: {
+									type: 'object',
+									additionalProperties: true,
+								},
+							},
+							pagination: {
+								type: 'object',
+								properties: {
+									total: { type: 'integer' },
+									limit: { type: 'integer' },
+									offset: { type: 'integer' },
+									nextCursor: { type: 'string' },
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		async (request, reply) => {
@@ -130,7 +153,11 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 
 			const [data, total] = await Promise.all([
 				FeeEventModel.find(filter, { _id: 0 })
-					.sort({ blockNumber: SORT_DESC, transactionHash: SORT_ASC, logIndex: SORT_ASC })
+					.sort({
+						blockNumber: SORT_DESC,
+						transactionHash: SORT_ASC,
+						logIndex: SORT_ASC,
+					})
 					.skip(parsedOffset)
 					.limit(parsedLimit)
 					.lean(),

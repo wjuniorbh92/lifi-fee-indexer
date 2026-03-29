@@ -20,7 +20,11 @@ async function main(): Promise<void> {
 	const scanners = await initScanners(env, logger);
 	const scannerMap = buildScannerMap(env);
 
-	const app = await buildServer(logger, scannerMap);
+	const app = await buildServer({
+		logger,
+		scanners: scannerMap,
+		pollIntervalMs: env.POLL_INTERVAL_MS,
+	});
 	await app.listen({ port: env.PORT, host: env.HOST });
 	logger.info({ port: env.PORT, host: env.HOST }, 'API server started');
 

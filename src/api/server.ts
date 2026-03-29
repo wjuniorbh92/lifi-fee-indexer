@@ -1,4 +1,6 @@
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import fastify from 'fastify';
 import type pino from 'pino';
 import type { ChainScanner } from '../scanners/types.js';
@@ -13,7 +15,14 @@ const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_BODY_SIZE = 1_048_576; // 1 MB
 
-export async function buildServer(logger?: pino.Logger, scanners?: Map<string, ChainScanner>) {
+export interface BuildServerOptions {
+	logger?: pino.Logger;
+	scanners?: Map<string, ChainScanner>;
+	pollIntervalMs?: number;
+}
+
+export async function buildServer(options: BuildServerOptions = {}) {
+	const { logger, scanners, pollIntervalMs } = options;
 	const app = fastify({
 		logger: logger
 			? {
@@ -25,9 +34,21 @@ export async function buildServer(logger?: pino.Logger, scanners?: Map<string, C
 		bodyLimit: MAX_BODY_SIZE,
 	});
 
+	await app.register(swagger, {
+		openapi: {
+			info: {
+				title: 'LI.FI Fee Indexer API',
+				description: 'FeeCollector event indexer for Polygon (EVM) and Stellar Testnet',
+				version: '1.0.0',
+			},
+		},
+	});
+	await app.register(swaggerUi, { routePrefix: '/docs' });
+
 	const botBan = createBotBanHook();
 	app.addHook('onRequest', botBan.onRequest);
 	app.setNotFoundHandler(botBan.notFoundHandler);
+	app.addHook('onClose', () => botBan.destroy());
 
 	await app.register(rateLimit, {
 		max: RATE_LIMIT_MAX,
@@ -43,7 +64,7 @@ export async function buildServer(logger?: pino.Logger, scanners?: Map<string, C
 	});
 
 	await app.register(eventsRoute);
-	await app.register(healthRoute);
+	await app.register(healthRoute, { pollIntervalMs });
 
 	app.get('/metrics', async (_request, reply) => {
 		return reply.type('text/plain; charset=utf-8').send(metrics.serialize());
