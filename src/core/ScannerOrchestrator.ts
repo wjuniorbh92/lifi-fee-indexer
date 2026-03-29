@@ -163,8 +163,8 @@ export async function runScanner(
 		try {
 			await SyncStateManager.save(chainId, toBlock, nextCursor);
 
-			if (nextCursor && 'setCursor' in scanner && typeof scanner.setCursor === 'function') {
-				scanner.setCursor(nextCursor);
+			if (nextCursor) {
+				scanner.setCursor?.(nextCursor);
 			}
 
 			const batchDurationSec = (performance.now() - batchStart) / 1000;

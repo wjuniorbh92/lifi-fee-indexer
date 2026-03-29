@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { FeeEventModel } from '../../models/FeeEvent.js';
+import { normalizeAddress } from '../../utils/normalizeAddress.js';
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 1000;
@@ -100,8 +101,10 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 			const cursorPosition = decodeCursor(cursor);
 			const parsedOffset = cursor ? 0 : clampOffset(offset);
 
+			const integratorMatch = normalizeAddress(integrator);
+
 			const filter: Record<string, unknown> = {
-				integrator: integrator.toLowerCase(),
+				integrator: integratorMatch,
 				...pickBaseFilters(chainId, token, fromBlock, toBlock),
 			};
 
@@ -121,7 +124,7 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 			}
 
 			const baseFilter: Record<string, unknown> = {
-				integrator: integrator.toLowerCase(),
+				integrator: integratorMatch,
 				...pickBaseFilters(chainId, token, fromBlock, toBlock),
 			};
 

@@ -30,16 +30,18 @@ export async function initScanners(env: Env, logger: pino.Logger): Promise<Chain
 			const cursor = await SyncStateManager.loadCursor(scanner.config.chainId);
 			if (cursor) scanner.setCursor(cursor);
 
-			// Stellar has 7-day retention — if startBlock is 0, start from latest ledger
+			// Stellar RPC default retention is ~7 days (120,960 ledgers).
+			// If startBlock is 0 and no sync state exists,
+			// seed the sync state with the latest ledger so the orchestrator starts from there.
 			if (scanner.config.startBlock === 0) {
 				const existingState = await SyncStateManager.loadOrCreate(scanner.config.chainId, 0);
 				if (existingState === 0) {
 					const latest = await scanner.getLatestPosition();
 					logger.info(
 						{ chainId: scanner.config.chainId, latestLedger: latest },
-						'Stellar: no start block configured, starting from latest ledger',
+						'Stellar: no start block configured, seeding sync state from latest ledger',
 					);
-					(scanner.config as { startBlock: number }).startBlock = latest;
+					await SyncStateManager.save(scanner.config.chainId, latest, undefined);
 				}
 			}
 		}

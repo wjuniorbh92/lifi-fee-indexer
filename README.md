@@ -89,7 +89,7 @@ The app runs on a Linux VPS that doesn't have a domain name or public-facing rev
 cp .env.prod.example .env.prod
 # Edit .env.prod: set TS_AUTH_KEY, MONGO_PASSWORD, POLYGON_RPC_URL
 
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 This starts three services:
@@ -288,10 +288,10 @@ The Stellar scanner connects to a real **oracle/price-feed contract** (`CDLZFC3.
 
 ### Caveats
 
-- Stellar testnet has a **7-day event retention limit** -- events older than 7 days are unavailable
+- Stellar RPC default event retention is **~7 days** (120,960 ledgers). The public testnet RPC (`soroban-testnet.stellar.org`) likely uses this default
 - Testnet resets approximately quarterly, which clears all data and may change contract IDs
-- For production Stellar mainnet, a paid RPC provider (QuickNode, Blockdaemon) would be needed
-- Historical backfill beyond 7 days requires Galexie or Stellar Ingest SDK
+- For production Stellar mainnet, a paid RPC provider (QuickNode, Blockdaemon) with extended retention is needed
+- Historical backfill beyond the retention window requires Galexie or Stellar Ingest SDK
 - To enable Stellar scanning, set `STELLAR_INTEGRATOR_ADDRESS` in `.env`
 
 ## Next Steps

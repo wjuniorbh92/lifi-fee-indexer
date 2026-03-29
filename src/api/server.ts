@@ -3,6 +3,7 @@ import fastify from 'fastify';
 import type pino from 'pino';
 import type { ChainScanner } from '../scanners/types.js';
 import { metrics } from '../utils/metrics.js';
+import { normalizeAddress } from '../utils/normalizeAddress.js';
 import { createBotBanHook } from './middleware/botBan.js';
 import { eventsRoute } from './routes/events.js';
 import { fetchEventsRoute } from './routes/fetchEvents.js';
@@ -35,7 +36,7 @@ export async function buildServer(logger?: pino.Logger, scanners?: Map<string, C
 			if (request.url.startsWith('/events')) {
 				const url = new URL(request.url, 'http://localhost');
 				const integrator = url.searchParams.get('integrator');
-				if (integrator) return `integrator:${integrator.toLowerCase()}`;
+				if (integrator) return `integrator:${normalizeAddress(integrator)}`;
 			}
 			return request.ip;
 		},

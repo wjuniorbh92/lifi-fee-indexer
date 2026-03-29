@@ -32,6 +32,8 @@ export async function getStellarEvents(
 	];
 
 	while (true) {
+		// Stellar RPC: cursor and startLedger are mutually exclusive.
+		// When resuming, cursor takes precedence; startLedger is for initial fetch only.
 		const request: rpc.Api.GetEventsRequest = currentCursor
 			? { filters, cursor: currentCursor, limit: EVENTS_LIMIT }
 			: { filters, startLedger: fromLedger, limit: EVENTS_LIMIT };

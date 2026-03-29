@@ -10,6 +10,7 @@ let mongo: MongoMemoryServer;
 beforeAll(async () => {
 	mongo = await MongoMemoryServer.create();
 	await mongoose.connect(mongo.getUri());
+	await FeeEventModel.ensureIndexes();
 });
 
 afterAll(async () => {

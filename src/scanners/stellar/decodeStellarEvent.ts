@@ -65,7 +65,11 @@ function decodeFeeEvent(
 	}
 
 	const integrator = Address.fromScVal(topic[1]).toString();
-	const amount = (scValToNative(value) as bigint).toString();
+	const rawAmount = scValToNative(value);
+	if (typeof rawAmount !== 'bigint') {
+		throw new Error(`Expected bigint for fee amount, got ${typeof rawAmount}`);
+	}
+	const amount = rawAmount.toString();
 
 	return {
 		chainId,
@@ -87,7 +91,7 @@ const MIN_TRANSFER_TOPIC_LENGTH = 3;
  *   topic[0] = Symbol("transfer")
  *   topic[1] = Address (from)
  *   topic[2] = Address (to)
- *   value    = i128 (amount)
+ *   value    = i128 (amount) OR ScMap { amount: i128, to_muxed_id: bytes } (muxed accounts)
  */
 function decodeTransferEvent(
 	topic: xdr.ScVal[],
@@ -106,7 +110,7 @@ function decodeTransferEvent(
 	}
 
 	const to = Address.fromScVal(topic[2]).toString();
-	const amount = (scValToNative(value) as bigint).toString();
+	const amount = extractTransferAmount(value, eventId);
 	const token = contractId?.toString() ?? NATIVE_TOKEN_ID;
 
 	return {
@@ -123,6 +127,26 @@ function decodeTransferEvent(
 }
 
 /**
+ * Extract the transfer amount from a transfer event value.
+ * Standard SEP-0041 transfers have a bare i128 value.
+ * Muxed account transfers have an ScMap: { amount: i128, to_muxed_id: bytes }.
+ */
+function extractTransferAmount(value: xdr.ScVal, eventId: string): string {
+	const raw = scValToNative(value);
+	if (typeof raw === 'bigint') {
+		return raw.toString();
+	}
+	if (typeof raw === 'object' && raw !== null && 'amount' in raw) {
+		const mapAmount = (raw as Record<string, unknown>).amount;
+		if (typeof mapAmount === 'bigint') {
+			return mapAmount.toString();
+		}
+		return String(mapAmount);
+	}
+	throw new Error(`Unexpected transfer value type in event ${eventId}: ${typeof raw}`);
+}
+
+/**
  * Extract a numeric log index from a Stellar paging token.
  * Paging tokens are numeric IDs like "0007508891323596800-0000000001".
  * We use the last segment as the logIndex for dedup.
@@ -131,5 +155,8 @@ function logIndexFromEventId(eventId: string): number {
 	const parts = eventId.split('-');
 	const lastPart = parts[parts.length - 1];
 	const parsed = Number(lastPart);
-	return Number.isFinite(parsed) ? parsed : 0;
+	if (!Number.isFinite(parsed)) {
+		throw new Error(`Failed to parse logIndex from event ID "${eventId}"`);
+	}
+	return parsed;
 }

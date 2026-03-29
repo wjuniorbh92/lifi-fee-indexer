@@ -55,12 +55,8 @@ describe('ScannerOrchestrator integration', () => {
 		const events = [makeEvent(MOCK_EVM_BLOCK, 0), makeEvent(MOCK_EVM_BLOCK, 1)];
 		await FeeEventModel.insertMany(events, { ordered: false });
 
-		// Insert same events again — should throw but not lose data
-		try {
-			await FeeEventModel.insertMany(events, { ordered: false });
-		} catch {
-			// expected duplicate key error
-		}
+		// Insert same events again — should throw duplicate key error but not lose data
+		await expect(FeeEventModel.insertMany(events, { ordered: false })).rejects.toThrow(/E11000/);
 
 		const count = await FeeEventModel.countDocuments();
 		expect(count).toBe(2);
