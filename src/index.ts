@@ -5,6 +5,7 @@ import { loadEnv } from './config/env.js';
 import { runAllScanners } from './core/ScannerOrchestrator.js';
 import { registerShutdownHandler } from './core/helpers/gracefulShutdown.js';
 import { initScanners } from './core/initScanners.js';
+import { buildScannerMap } from './core/scannerRegistry.js';
 import { createLogger } from './utils/logger.js';
 
 const FATAL_EXIT_CODE = 1;
@@ -14,8 +15,9 @@ async function main(): Promise<void> {
 	const logger = createLogger(env.LOG_LEVEL);
 
 	const scanners = await initScanners(env, logger);
+	const scannerMap = buildScannerMap(env);
 
-	const app = await buildServer(logger);
+	const app = await buildServer(logger, scannerMap);
 	await app.listen({ port: env.PORT, host: env.HOST });
 	logger.info({ port: env.PORT, host: env.HOST }, 'API server started');
 

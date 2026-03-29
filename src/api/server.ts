@@ -1,15 +1,17 @@
 import rateLimit from '@fastify/rate-limit';
 import fastify from 'fastify';
 import type pino from 'pino';
+import type { ChainScanner } from '../scanners/types.js';
 import { createBotBanHook } from './middleware/botBan.js';
 import { eventsRoute } from './routes/events.js';
+import { fetchEventsRoute } from './routes/fetchEvents.js';
 import { healthRoute } from './routes/health.js';
 
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_BODY_SIZE = 1_048_576; // 1 MB
 
-export async function buildServer(logger?: pino.Logger) {
+export async function buildServer(logger?: pino.Logger, scanners?: Map<string, ChainScanner>) {
 	const app = fastify({
 		logger: logger
 			? {
@@ -32,6 +34,10 @@ export async function buildServer(logger?: pino.Logger) {
 
 	await app.register(eventsRoute);
 	await app.register(healthRoute);
+
+	if (scanners) {
+		await app.register(fetchEventsRoute, { scanners });
+	}
 
 	return app;
 }

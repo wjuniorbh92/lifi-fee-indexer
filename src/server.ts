@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { buildServer } from './api/server.js';
 import { loadEnv } from './config/env.js';
 import { initShutdownHandler, registerShutdownHandler } from './core/helpers/gracefulShutdown.js';
+import { buildScannerMap } from './core/scannerRegistry.js';
 import { connectDatabase, disconnectDatabase } from './models/database.js';
 import { createLogger } from './utils/logger.js';
 
@@ -17,7 +18,8 @@ async function main(): Promise<void> {
 	await connectDatabase(env.MONGODB_URI, logger);
 	registerShutdownHandler(() => disconnectDatabase(logger));
 
-	const app = await buildServer(logger);
+	const scanners = buildScannerMap(env);
+	const app = await buildServer(logger, scanners);
 	registerShutdownHandler(async () => {
 		await app.close();
 		logger.info('API server stopped');

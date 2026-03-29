@@ -13,20 +13,21 @@ Multi-chain event indexer for the LI.FI `FeeCollector` smart contract. Scrapes `
                                  |
                   +--------------+--------------+
                   |                             |
-         +--------v--------+          +--------v--------+
-         | ScannerOrchestrator |      |   Fastify API   |
-         |  (per-chain loop)   |      | /events /health |
-         +--------+---------+         +--------+--------+
+         +--------v--------+          +--------v---------+
+         | ScannerOrchestrator |      |    Fastify API    |
+         |  (per-chain loop)   |      | /events  /health  |
+         +--------+---------+         | /events/fetch     |
+                  |                    +--------+----------+
                   |                             |
-         +--------v--------+                   |
-         |  ChainScanner   |                   |
-         |  interface       |                   |
-         +---+----------+--+                   |
-             |          |                      |
-     +-------v--+  +----v-------+              |
-     |EvmScanner|  |StellarScanner|            |
-     |  (viem)  |  |(@stellar/sdk)|           |
-     +----------+  +-------------+             |
+         +--------v--------+           on-demand fetch
+         |  ChainScanner   |<------------------+
+         |  interface       |
+         +---+----------+--+
+             |          |
+     +-------v--+  +----v-------+
+     |EvmScanner|  |StellarScanner|
+     |  (viem)  |  |(@stellar/sdk)|
+     +----------+  +-------------+
                                                |
          +-------------------------------------+
          |           MongoDB (Typegoose)
@@ -185,6 +186,51 @@ Query indexed fee collection events.
   "pagination": { "total": 10, "limit": 100, "offset": 0 }
 }
 ```
+
+### `POST /events/fetch`
+
+On-demand event fetching — fetch events from unsynced block ranges directly from the RPC, store them in MongoDB, and return them in a single request. Useful when you need events from a range the background scanner hasn't reached yet.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `chainId` | Yes | Chain to fetch from (`polygon`, `stellar-testnet`) |
+| `fromBlock` | Yes | Start block (inclusive) |
+| `toBlock` | Yes | End block (inclusive, max range: 10,000) |
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:3000/events/fetch \
+  -H 'Content-Type: application/json' \
+  -d '{"chainId":"polygon","fromBlock":78600000,"toBlock":78600100}'
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "chainId": "polygon",
+      "blockNumber": 78600050,
+      "transactionHash": "0x...",
+      "logIndex": 0,
+      "token": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      "integrator": "0xe165726007b58dab2893f85e206f20388fa2f8ce",
+      "integratorFee": "1000000",
+      "lifiFee": "50000",
+      "timestamp": "2026-01-15T12:00:00.000Z"
+    }
+  ],
+  "meta": { "chainId": "polygon", "fromBlock": 78600000, "toBlock": 78600100, "count": 1 }
+}
+```
+
+**Notes:**
+- Does **not** update `SyncState` — the background scanner owns that watermark
+- Deduplication is handled by the existing unique index; when the scanner catches up, duplicates are silently skipped
+- Returns `400` for unknown chains, invalid ranges, or ranges exceeding 10,000 blocks
+- Returns `502` if the RPC is unreachable after retries
 
 ### `GET /health`
 
