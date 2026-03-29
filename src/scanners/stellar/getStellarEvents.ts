@@ -42,6 +42,10 @@ export async function getStellarEvents(
 			if (event.ledger > toLedger) {
 				return { events: allEvents, cursor: lastCursor };
 			}
+			if (event.ledger < fromLedger) {
+				lastCursor = event.id;
+				continue;
+			}
 			allEvents.push(event);
 			lastCursor = event.id;
 		}

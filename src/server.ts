@@ -18,14 +18,13 @@ async function main(): Promise<void> {
 	registerShutdownHandler(() => disconnectDatabase(logger));
 
 	const app = await buildServer(logger);
-
-	await app.listen({ port: env.PORT, host: env.HOST });
-	logger.info({ port: env.PORT, host: env.HOST }, 'API server started');
-
 	registerShutdownHandler(async () => {
 		await app.close();
 		logger.info('API server stopped');
 	});
+
+	await app.listen({ port: env.PORT, host: env.HOST });
+	logger.info({ port: env.PORT, host: env.HOST }, 'API server started');
 }
 
 main().catch((err) => {

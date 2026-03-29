@@ -4,7 +4,7 @@ Multi-chain event indexer for the LI.FI `FeeCollector` smart contract. Scrapes `
 
 ## Architecture
 
-```
+```text
                         +------------------+
                         |   Entry Points   |
                         |  index / scanner |
@@ -264,7 +264,7 @@ Areas for future improvement and features not fully implemented:
 
 ## Project Structure
 
-```
+```text
 src/
   config/       # Zod env validation, chain configs, types
   models/       # Typegoose models (FeeEvent, SyncState), database connection
