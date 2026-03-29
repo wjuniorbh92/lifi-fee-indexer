@@ -42,7 +42,7 @@ describe('botBan middleware', () => {
 			expect(done).toHaveBeenCalledOnce();
 		});
 
-		it('sends 403 and calls done() for banned IPs', () => {
+		it('sends 403 without calling done() for banned IPs', () => {
 			const { onRequest, notFoundHandler } = createBotBanHook();
 			const request = createMockRequest();
 
@@ -59,7 +59,7 @@ describe('botBan middleware', () => {
 				error: 'Forbidden',
 				code: 'FORBIDDEN',
 			});
-			expect(done).toHaveBeenCalledOnce();
+			expect(done).not.toHaveBeenCalled();
 		});
 
 		it('allows request after ban expires', () => {

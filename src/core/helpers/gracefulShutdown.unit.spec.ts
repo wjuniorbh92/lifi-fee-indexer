@@ -18,6 +18,7 @@ describe('gracefulShutdown', () => {
 		vi.useFakeTimers();
 		vi.resetModules();
 		vi.restoreAllMocks();
+		vi.clearAllMocks();
 		const mod = await import('./gracefulShutdown.js');
 		initShutdownHandler = mod.initShutdownHandler;
 		registerShutdownHandler = mod.registerShutdownHandler;

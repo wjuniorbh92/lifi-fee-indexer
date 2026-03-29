@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { SyncStateModel } from '../../models/SyncState.js';
 import { isDatabaseConnected } from '../../models/database.js';
 
-const STALENESS_MULTIPLIER = 3;
+export const STALENESS_MULTIPLIER = 3;
 
 const HEALTH_STATUS_OK = 'ok' as const;
 const HEALTH_STATUS_DEGRADED = 'degraded' as const;

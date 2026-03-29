@@ -49,4 +49,11 @@ describe('isBulkDuplicatesOnly', () => {
 	it('returns false when writeErrors is not an array', () => {
 		expect(isBulkDuplicatesOnly({ writeErrors: 'not-array' })).toBe(false);
 	});
+
+	it('returns false when nested err.code is not 11000', () => {
+		const err = {
+			writeErrors: [{ err: { code: 50 } }],
+		};
+		expect(isBulkDuplicatesOnly(err)).toBe(false);
+	});
 });

@@ -35,7 +35,6 @@ export function createBotBanHook() {
 
 		if (record && record.bannedUntil > Date.now()) {
 			sendError(reply, 403, 'Forbidden', ApiErrorCode.FORBIDDEN);
-			done();
 			return;
 		}
 

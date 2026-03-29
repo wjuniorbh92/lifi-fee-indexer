@@ -113,6 +113,14 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 							},
 						},
 					},
+					400: {
+						type: 'object',
+						required: ['error', 'code'],
+						properties: {
+							error: { type: 'string' },
+							code: { type: 'string' },
+						},
+					},
 				},
 			},
 		},

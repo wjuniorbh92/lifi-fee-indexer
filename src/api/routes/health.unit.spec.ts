@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { STALENESS_MULTIPLIER } from './health.js';
 
 const POLL_INTERVAL_MS = 10_000;
-const STALENESS_MULTIPLIER = 3;
 
 const { mockFind, mockIsDatabaseConnected } = vi.hoisted(() => {
 	const mockLean = vi.fn();
