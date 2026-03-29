@@ -1,4 +1,5 @@
-import { type ErrorCode, ScannerError } from './ScannerError.js';
+import type { ErrorCode } from './ErrorCode.js';
+import { ScannerError } from './ScannerError.js';
 
 export class RpcError extends ScannerError {
 	public readonly statusCode?: number;

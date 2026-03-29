@@ -61,7 +61,7 @@ function createMockScanner(getEventsResult: ScanBatchResult = [MOCK_EVENT]): Cha
 
 async function buildApp(scanners: Map<string, ChainScanner>) {
 	const { buildServer } = await import('../server.js');
-	return buildServer(undefined, scanners);
+	return buildServer({ scanners });
 }
 
 describe('POST /events/fetch', () => {
@@ -77,7 +77,11 @@ describe('POST /events/fetch', () => {
 		const response = await app.inject({
 			method: 'POST',
 			url: '/events/fetch',
-			payload: { chainId: 'polygon', fromBlock: MOCK_BLOCK_FROM, toBlock: MOCK_BLOCK_TO },
+			payload: {
+				chainId: 'polygon',
+				fromBlock: MOCK_BLOCK_FROM,
+				toBlock: MOCK_BLOCK_TO,
+			},
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -90,13 +94,22 @@ describe('POST /events/fetch', () => {
 			count: 1,
 		});
 		expect(scanner.getEvents).toHaveBeenCalledWith(MOCK_BLOCK_FROM, MOCK_BLOCK_TO);
-		expect(mockInsertMany).toHaveBeenCalledWith([MOCK_EVENT], { ordered: false });
+		expect(mockInsertMany).toHaveBeenCalledWith([MOCK_EVENT], {
+			ordered: false,
+		});
 	});
 
 	it('handles Stellar cursor-based response shape', async () => {
 		const stellarEvent = { ...MOCK_EVENT, chainId: 'stellar-testnet' };
-		const scanner = createMockScanner({ events: [stellarEvent], nextCursor: 'abc123' });
-		scanner.config = { ...scanner.config, chainId: 'stellar-testnet', type: 'stellar' };
+		const scanner = createMockScanner({
+			events: [stellarEvent],
+			nextCursor: 'abc123',
+		});
+		scanner.config = {
+			...scanner.config,
+			chainId: 'stellar-testnet',
+			type: 'stellar',
+		};
 		const scanners = new Map([['stellar-testnet', scanner]]);
 		mockInsertMany.mockResolvedValueOnce([stellarEvent]);
 
@@ -127,6 +140,7 @@ describe('POST /events/fetch', () => {
 		const body = response.json();
 		expect(body.error).toContain('Unknown chainId');
 		expect(body.error).toContain('polygon');
+		expect(body.code).toBe('UNKNOWN_CHAIN');
 	});
 
 	it('returns 400 when fromBlock > toBlock', async () => {
@@ -142,6 +156,7 @@ describe('POST /events/fetch', () => {
 		expect(response.statusCode).toBe(400);
 		const body = response.json();
 		expect(body.error).toContain('fromBlock must be less than or equal to toBlock');
+		expect(body.code).toBe('BLOCK_RANGE_INVALID');
 	});
 
 	it('returns 400 when range exceeds maximum', async () => {
@@ -157,6 +172,7 @@ describe('POST /events/fetch', () => {
 		expect(response.statusCode).toBe(400);
 		const body = response.json();
 		expect(body.error).toContain('Block range too large');
+		expect(body.code).toBe('BLOCK_RANGE_TOO_LARGE');
 	});
 
 	it('returns 400 when required fields are missing', async () => {
@@ -185,12 +201,17 @@ describe('POST /events/fetch', () => {
 		const response = await app.inject({
 			method: 'POST',
 			url: '/events/fetch',
-			payload: { chainId: 'polygon', fromBlock: MOCK_BLOCK_FROM, toBlock: MOCK_BLOCK_TO },
+			payload: {
+				chainId: 'polygon',
+				fromBlock: MOCK_BLOCK_FROM,
+				toBlock: MOCK_BLOCK_TO,
+			},
 		});
 
 		expect(response.statusCode).toBe(502);
 		const body = response.json();
 		expect(body.error).toContain('Failed to fetch events from RPC');
+		expect(body.code).toBe('RPC_FETCH_FAILED');
 	});
 
 	it('handles duplicate key errors gracefully', async () => {
@@ -207,7 +228,11 @@ describe('POST /events/fetch', () => {
 		const response = await app.inject({
 			method: 'POST',
 			url: '/events/fetch',
-			payload: { chainId: 'polygon', fromBlock: MOCK_BLOCK_FROM, toBlock: MOCK_BLOCK_TO },
+			payload: {
+				chainId: 'polygon',
+				fromBlock: MOCK_BLOCK_FROM,
+				toBlock: MOCK_BLOCK_TO,
+			},
 		});
 
 		expect(response.statusCode).toBe(200);
@@ -224,12 +249,17 @@ describe('POST /events/fetch', () => {
 		const response = await app.inject({
 			method: 'POST',
 			url: '/events/fetch',
-			payload: { chainId: 'polygon', fromBlock: MOCK_BLOCK_FROM, toBlock: MOCK_BLOCK_TO },
+			payload: {
+				chainId: 'polygon',
+				fromBlock: MOCK_BLOCK_FROM,
+				toBlock: MOCK_BLOCK_TO,
+			},
 		});
 
 		expect(response.statusCode).toBe(500);
 		const body = response.json();
 		expect(body.error).toContain('Failed to store fetched events');
+		expect(body.code).toBe('DB_WRITE_FAILED');
 	});
 
 	it('returns empty data when no events found in range', async () => {
@@ -240,7 +270,11 @@ describe('POST /events/fetch', () => {
 		const response = await app.inject({
 			method: 'POST',
 			url: '/events/fetch',
-			payload: { chainId: 'polygon', fromBlock: MOCK_BLOCK_FROM, toBlock: MOCK_BLOCK_TO },
+			payload: {
+				chainId: 'polygon',
+				fromBlock: MOCK_BLOCK_FROM,
+				toBlock: MOCK_BLOCK_TO,
+			},
 		});
 
 		expect(response.statusCode).toBe(200);

@@ -11,7 +11,14 @@ const { mockFind, mockCountDocuments } = vi.hoisted(() => {
 	const mockSort = vi.fn().mockReturnValue({ skip: mockSkip });
 	const mockFind = vi.fn().mockReturnValue({ sort: mockSort });
 	const mockCountDocuments = vi.fn();
-	return { mockFind, mockCountDocuments, mockSort, mockSkip, mockLimit, mockLean };
+	return {
+		mockFind,
+		mockCountDocuments,
+		mockSort,
+		mockSkip,
+		mockLimit,
+		mockLean,
+	};
 });
 
 vi.mock('../../models/FeeEvent.js', () => ({
@@ -71,7 +78,11 @@ describe('GET /events', () => {
 		expect(response.statusCode).toBe(200);
 		const body = response.json();
 		expect(body.data).toEqual([MOCK_EVENT]);
-		expect(body.pagination).toEqual({ total: 1, limit: EXPECTED_DEFAULT_LIMIT, offset: 0 });
+		expect(body.pagination).toEqual({
+			total: 1,
+			limit: EXPECTED_DEFAULT_LIMIT,
+			offset: 0,
+		});
 	});
 
 	it('returns 400 when integrator is missing', async () => {

@@ -20,7 +20,11 @@ async function main(): Promise<void> {
 	registerShutdownHandler(() => disconnectDatabase(logger));
 
 	const scanners = buildScannerMap(env);
-	const app = await buildServer(logger, scanners);
+	const app = await buildServer({
+		logger,
+		scanners,
+		pollIntervalMs: env.POLL_INTERVAL_MS,
+	});
 	registerShutdownHandler(async () => {
 		await app.close();
 		logger.info('API server stopped');

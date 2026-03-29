@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { ApiErrorCode, sendError } from '../helpers/errorResponse.js';
 
 const NOT_FOUND_STRIKE_LIMIT = 5;
 const BAN_DURATION_MS = 600_000; // 10 minutes
@@ -14,7 +15,7 @@ interface StrikeRecord {
 export function createBotBanHook() {
 	const strikes = new Map<string, StrikeRecord>();
 
-	const cleanup = setInterval(() => {
+	const cleanupTimer = setInterval(() => {
 		const now = Date.now();
 		for (const [ip, record] of strikes) {
 			if (record.bannedUntil < now && now - record.firstStrike > STRIKE_WINDOW_MS) {
@@ -22,7 +23,7 @@ export function createBotBanHook() {
 			}
 		}
 	}, CLEANUP_INTERVAL_MS);
-	cleanup.unref();
+	cleanupTimer.unref();
 
 	function getClientIp(request: FastifyRequest): string {
 		return request.ip;
@@ -33,8 +34,7 @@ export function createBotBanHook() {
 		const record = strikes.get(ip);
 
 		if (record && record.bannedUntil > Date.now()) {
-			reply.status(403).send({ error: 'Forbidden' });
-			done();
+			sendError(reply, 403, 'Forbidden', ApiErrorCode.FORBIDDEN);
 			return;
 		}
 
@@ -57,18 +57,27 @@ export function createBotBanHook() {
 			if (record.count >= NOT_FOUND_STRIKE_LIMIT) {
 				record.bannedUntil = now + BAN_DURATION_MS;
 				request.log.warn({ ip, strikes: record.count }, 'IP banned for repeated 404 hits');
-				return reply.status(403).send({ error: 'Forbidden' });
+				return sendError(reply, 403, 'Forbidden', ApiErrorCode.FORBIDDEN);
 			}
 		} else {
-			strikes.set(ip, { count: 1, firstStrike: now, bannedUntil: 0 });
+			strikes.set(ip, {
+				count: 1,
+				firstStrike: now,
+				bannedUntil: 0,
+			});
 		}
 
-		return reply.status(404).send({
-			message: `Route ${request.method}:${request.url} not found`,
-			error: 'Not Found',
-			statusCode: 404,
-		});
+		return sendError(
+			reply,
+			404,
+			`Route ${request.method}:${request.url} not found`,
+			ApiErrorCode.NOT_FOUND,
+		);
 	}
 
-	return { onRequest, notFoundHandler };
+	function destroy() {
+		clearInterval(cleanupTimer);
+	}
+
+	return { onRequest, notFoundHandler, destroy };
 }

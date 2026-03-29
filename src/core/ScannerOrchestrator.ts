@@ -1,5 +1,6 @@
 import type pino from 'pino';
 import { isBlockRangeRpcError, isRetryableRpcError } from '../errors/RpcError.js';
+import { isBulkDuplicatesOnly } from '../errors/mongoErrors.js';
 import { FeeEventModel } from '../models/FeeEvent.js';
 import type { ChainScanner } from '../scanners/types.js';
 import { metrics } from '../utils/metrics.js';
@@ -10,7 +11,6 @@ import { sleep } from './helpers/sleep.js';
 
 const SCANNER_MAX_RETRIES = 5;
 const SCANNER_BASE_DELAY_MS = 1000;
-const MONGO_DUPLICATE_KEY_CODE = 11000;
 const MIN_BATCH_SIZE = 1;
 
 /**
@@ -102,7 +102,13 @@ export async function runScanner(
 			if (isBlockRangeRpcError(err) && currentBatchSize > MIN_BATCH_SIZE) {
 				const nextBatchSize = Math.max(MIN_BATCH_SIZE, Math.floor(currentBatchSize / 2));
 				chainLogger.warn(
-					{ err, fromBlock, toBlock, batchSize: currentBatchSize, nextBatchSize },
+					{
+						err,
+						fromBlock,
+						toBlock,
+						batchSize: currentBatchSize,
+						nextBatchSize,
+					},
 					'Block range too large — reducing batch size and retrying',
 				);
 				currentBatchSize = nextBatchSize;
@@ -127,31 +133,15 @@ export async function runScanner(
 				await FeeEventModel.insertMany(events, { ordered: false });
 				chainLogger.info({ eventsInserted: events.length, fromBlock, toBlock }, 'Events stored');
 			} catch (err: unknown) {
-				const isBulkDuplicatesOnly =
-					err !== null &&
-					typeof err === 'object' &&
-					'writeErrors' in err &&
-					Array.isArray((err as { writeErrors: unknown[] }).writeErrors) &&
-					(
-						err as {
-							writeErrors: Array<{ code?: number; err?: { code: number } }>;
-						}
-					).writeErrors.length > 0 &&
-					(
-						err as {
-							writeErrors: Array<{ code?: number; err?: { code: number } }>;
-						}
-					).writeErrors.every(
-						(we) =>
-							we.code === MONGO_DUPLICATE_KEY_CODE || we.err?.code === MONGO_DUPLICATE_KEY_CODE,
-					);
-
-				if (!isBulkDuplicatesOnly) {
+				if (!isBulkDuplicatesOnly(err)) {
 					chainLogger.error(
 						{ err, fromBlock, toBlock },
 						'DB write failed — cursor not advanced, will retry batch',
 					);
-					metrics.increment('scanner_errors_total', { chainId, type: 'db_write' });
+					metrics.increment('scanner_errors_total', {
+						chainId,
+						type: 'db_write',
+					});
 					await sleep(pollIntervalMs);
 					continue;
 				}
@@ -169,7 +159,9 @@ export async function runScanner(
 
 			const batchDurationSec = (performance.now() - batchStart) / 1000;
 			metrics.increment('scanner_batches_total', { chainId });
-			metrics.observe('scanner_batch_duration_seconds', batchDurationSec, { chainId });
+			metrics.observe('scanner_batch_duration_seconds', batchDurationSec, {
+				chainId,
+			});
 			if (events.length > 0) {
 				metrics.increment('scanner_events_inserted_total', { chainId }, events.length);
 			}

@@ -24,6 +24,8 @@
 	},
 	"dependencies": {
 		"@fastify/rate-limit": "^10.3.0",
+		"@fastify/swagger": "^9.7.0",
+		"@fastify/swagger-ui": "^5.2.5",
 		"@stellar/stellar-sdk": "^14.6.1",
 		"@typegoose/typegoose": "^12.8.0",
 		"dotenv": "^17.3.1",

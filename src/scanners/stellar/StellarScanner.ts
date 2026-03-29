@@ -30,9 +30,9 @@ export class StellarScanner implements ChainScanner {
 
 		const page = await getStellarEvents(this.server, this.config, from, to, this.cursor);
 
-		const events: NormalizedEvent[] = page.events.map((event) =>
-			decodeStellarEvent(event, this.config.chainId),
-		);
+		const events: NormalizedEvent[] = page.events
+			.map((event) => decodeStellarEvent(event, this.config.chainId))
+			.filter((e): e is NormalizedEvent => e !== undefined);
 
 		return {
 			events,
