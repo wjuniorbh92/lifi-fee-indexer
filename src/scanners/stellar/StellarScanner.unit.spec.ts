@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NormalizedEvent } from '../../config/types.js';
 import { StellarScanner } from './StellarScanner.js';
 
+const MOCK_LATEST_LEDGER = 700500;
+const MOCK_EVENT_LEDGER = 500100;
+const MOCK_SCAN_FROM = 500000;
+const MOCK_SCAN_TO = 500200;
+const MOCK_SCAN_FROM_2 = 500201;
+const MOCK_SCAN_TO_2 = 500400;
+const STELLAR_BATCH_SIZE = 100;
+
 const { mockGetLatestLedger, mockGetEvents } = vi.hoisted(() => {
 	const mockGetLatestLedger = vi.fn();
 	const mockGetEvents = vi.fn();
@@ -34,7 +42,7 @@ const STELLAR_CONFIG = {
 	rpcUrl: 'https://soroban-testnet.stellar.org',
 	contractAddress: 'CABC123',
 	startBlock: 0,
-	batchSize: 100,
+	batchSize: STELLAR_BATCH_SIZE,
 	confirmations: 0,
 	type: 'stellar' as const,
 };
@@ -42,7 +50,7 @@ const STELLAR_CONFIG = {
 function makeEvent(): NormalizedEvent {
 	return {
 		chainId: 'stellar-testnet',
-		blockNumber: 500100,
+		blockNumber: MOCK_EVENT_LEDGER,
 		transactionHash: 'tx-abc',
 		logIndex: 0,
 		token: 'GTOKEN',
@@ -60,18 +68,18 @@ describe('StellarScanner', () => {
 
 	describe('getLatestPosition', () => {
 		it('returns latest ledger sequence', async () => {
-			mockGetLatestLedger.mockResolvedValue({ sequence: 700500 });
+			mockGetLatestLedger.mockResolvedValue({ sequence: MOCK_LATEST_LEDGER });
 
 			const scanner = new StellarScanner(STELLAR_CONFIG);
 			const result = await scanner.getLatestPosition();
 
-			expect(result).toBe(700500);
+			expect(result).toBe(MOCK_LATEST_LEDGER);
 		});
 	});
 
 	describe('getEvents', () => {
 		it('returns normalized events with nextCursor', async () => {
-			const rawEvent = { ledger: 500100, pagingToken: '500100-0-1' };
+			const rawEvent = { ledger: MOCK_EVENT_LEDGER, pagingToken: `${MOCK_EVENT_LEDGER}-0-1` };
 			const normalizedEvent = makeEvent();
 
 			mockGetStellarEvents.mockResolvedValue({
@@ -81,7 +89,7 @@ describe('StellarScanner', () => {
 			mockDecodeStellarEvent.mockReturnValue(normalizedEvent);
 
 			const scanner = new StellarScanner(STELLAR_CONFIG);
-			const result = await scanner.getEvents(500000, 500200);
+			const result = await scanner.getEvents(MOCK_SCAN_FROM, MOCK_SCAN_TO);
 
 			expect(result).toEqual({
 				events: [normalizedEvent],
@@ -94,7 +102,7 @@ describe('StellarScanner', () => {
 			mockGetStellarEvents.mockResolvedValue({ events: [], cursor: '' });
 
 			const scanner = new StellarScanner(STELLAR_CONFIG);
-			const result = await scanner.getEvents(500000, 500200);
+			const result = await scanner.getEvents(MOCK_SCAN_FROM, MOCK_SCAN_TO);
 
 			expect(result).toEqual({
 				events: [],
@@ -116,29 +124,33 @@ describe('StellarScanner', () => {
 			const scanner = new StellarScanner(STELLAR_CONFIG);
 			scanner.setCursor('existing-cursor');
 
-			await scanner.getEvents(500000, 500200);
+			await scanner.getEvents(MOCK_SCAN_FROM, MOCK_SCAN_TO);
 
 			expect(mockGetStellarEvents).toHaveBeenCalledWith(
 				expect.anything(),
 				STELLAR_CONFIG,
-				500000,
-				500200,
+				MOCK_SCAN_FROM,
+				MOCK_SCAN_TO,
 				'existing-cursor',
 			);
 		});
 
-		it('updates internal cursor after getEvents', async () => {
+		it('uses cursor set externally via setCursor for subsequent calls', async () => {
 			mockGetStellarEvents
 				.mockResolvedValueOnce({ events: [], cursor: 'new-cursor' })
 				.mockResolvedValueOnce({ events: [], cursor: '' });
 
 			const scanner = new StellarScanner(STELLAR_CONFIG);
-			await scanner.getEvents(500000, 500200);
-			await scanner.getEvents(500201, 500400);
+			const result = await scanner.getEvents(MOCK_SCAN_FROM, MOCK_SCAN_TO);
+
+			// Orchestrator sets cursor after successful persistence
+			scanner.setCursor(result.nextCursor);
+
+			await scanner.getEvents(MOCK_SCAN_FROM_2, MOCK_SCAN_TO_2);
 
 			expect(mockGetStellarEvents).toHaveBeenCalledTimes(2);
-			expect(mockGetStellarEvents.mock.calls[1][2]).toBe(500201);
-			expect(mockGetStellarEvents.mock.calls[1][3]).toBe(500400);
+			expect(mockGetStellarEvents.mock.calls[1][2]).toBe(MOCK_SCAN_FROM_2);
+			expect(mockGetStellarEvents.mock.calls[1][3]).toBe(MOCK_SCAN_TO_2);
 			expect(mockGetStellarEvents.mock.calls[1][4]).toBe('new-cursor');
 		});
 	});

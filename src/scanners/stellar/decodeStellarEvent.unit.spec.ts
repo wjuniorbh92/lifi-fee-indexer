@@ -3,6 +3,13 @@ import type { rpc } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 import { decodeStellarEvent } from './decodeStellarEvent.js';
 
+const MOCK_LEDGER = 500100;
+const MOCK_DECODE_LEDGER = 600200;
+const MOCK_INTEGRATOR_FEE = 1000000n;
+const MOCK_LIFI_FEE = 50000n;
+const MOCK_LOG_INDEX = 7;
+const MOCK_NUMERIC_PAGING_TOKEN = 12345;
+
 function makeScAddress(publicKey: string): xdr.ScVal {
 	return Address.fromString(publicKey).toScVal();
 }
@@ -27,9 +34,9 @@ function makeMockEvent(overrides: Partial<rpc.Api.EventResponse> = {}): rpc.Api.
 	return {
 		id: 'test-event-id',
 		type: 'contract' as const,
-		ledger: 500100,
+		ledger: MOCK_LEDGER,
 		ledgerClosedAt: '2026-01-15T12:00:00Z',
-		pagingToken: '500100-1-3',
+		pagingToken: `${MOCK_LEDGER}-1-3`,
 		inSuccessfulContractCall: true,
 		txHash: 'abc123def456',
 		topic: [
@@ -37,7 +44,7 @@ function makeMockEvent(overrides: Partial<rpc.Api.EventResponse> = {}): rpc.Api.
 			makeScAddress(tokenKey),
 			makeScAddress(integratorKey),
 		],
-		value: makeValueMap(1000000n, 50000n),
+		value: makeValueMap(MOCK_INTEGRATOR_FEE, MOCK_LIFI_FEE),
 		...overrides,
 	} as rpc.Api.EventResponse;
 }
@@ -54,9 +61,9 @@ describe('decodeStellarEvent', () => {
 				makeScAddress(integratorKey),
 			],
 			value: makeValueMap(5000000n, 100000n),
-			ledger: 600200,
+			ledger: MOCK_DECODE_LEDGER,
 			txHash: 'tx-hash-abc',
-			pagingToken: '600200-2-5',
+			pagingToken: `${MOCK_DECODE_LEDGER}-2-5`,
 			ledgerClosedAt: '2026-03-01T10:30:00Z',
 		});
 
@@ -64,7 +71,7 @@ describe('decodeStellarEvent', () => {
 
 		expect(result).toEqual({
 			chainId: 'stellar-testnet',
-			blockNumber: 600200,
+			blockNumber: MOCK_DECODE_LEDGER,
 			transactionHash: 'tx-hash-abc',
 			logIndex: 5,
 			token: tokenKey,
@@ -76,21 +83,21 @@ describe('decodeStellarEvent', () => {
 	});
 
 	it('extracts logIndex from paging token last segment', () => {
-		const event = makeMockEvent({ pagingToken: '500100-0-7' });
+		const event = makeMockEvent({ pagingToken: `${MOCK_LEDGER}-0-${MOCK_LOG_INDEX}` });
 		const result = decodeStellarEvent(event, 'stellar-testnet');
-		expect(result.logIndex).toBe(7);
+		expect(result.logIndex).toBe(MOCK_LOG_INDEX);
 	});
 
 	it('handles numeric paging token', () => {
-		const event = makeMockEvent({ pagingToken: '12345' });
+		const event = makeMockEvent({ pagingToken: String(MOCK_NUMERIC_PAGING_TOKEN) });
 		const result = decodeStellarEvent(event, 'stellar-testnet');
-		expect(result.logIndex).toBe(12345);
+		expect(result.logIndex).toBe(MOCK_NUMERIC_PAGING_TOKEN);
 	});
 
 	it('throws on events with fewer than 3 topics', () => {
 		const event = makeMockEvent({
 			topic: [nativeToScVal('FeesCollected', { type: 'symbol' })],
-			pagingToken: '500100-0-1',
+			pagingToken: `${MOCK_LEDGER}-0-1`,
 		});
 
 		expect(() => decodeStellarEvent(event, 'stellar-testnet')).toThrow('Unexpected topic length 1');

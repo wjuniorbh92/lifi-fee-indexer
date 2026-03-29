@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const EXPECTED_DEFAULT_LIMIT = 100;
+const EXPECTED_MAX_LIMIT = 1000;
+const MOCK_BLOCK_NUMBER = 78600100;
+
 const { mockFind, mockCountDocuments } = vi.hoisted(() => {
 	const mockLean = vi.fn();
 	const mockLimit = vi.fn().mockReturnValue({ lean: mockLean });
@@ -29,7 +33,7 @@ vi.mock('../../models/database.js', () => ({
 
 const MOCK_EVENT = {
 	chainId: 'polygon',
-	blockNumber: 78600100,
+	blockNumber: MOCK_BLOCK_NUMBER,
 	transactionHash: '0xabc',
 	logIndex: 0,
 	token: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
@@ -46,11 +50,6 @@ async function buildApp() {
 
 describe('GET /events', () => {
 	it('returns events for a valid integrator query', async () => {
-		const { mockLean } = vi.hoisted(() => {
-			const mockLean = vi.fn();
-			return { mockLean };
-		});
-
 		// Reset chain for this test
 		mockFind.mockReturnValueOnce({
 			sort: vi.fn().mockReturnValue({
@@ -72,7 +71,7 @@ describe('GET /events', () => {
 		expect(response.statusCode).toBe(200);
 		const body = response.json();
 		expect(body.data).toEqual([MOCK_EVENT]);
-		expect(body.pagination).toEqual({ total: 1, limit: 100, offset: 0 });
+		expect(body.pagination).toEqual({ total: 1, limit: EXPECTED_DEFAULT_LIMIT, offset: 0 });
 	});
 
 	it('returns 400 when integrator is missing', async () => {
@@ -127,7 +126,7 @@ describe('GET /events', () => {
 		});
 
 		const body = response.json();
-		expect(body.pagination.limit).toBe(1000);
+		expect(body.pagination.limit).toBe(EXPECTED_MAX_LIMIT);
 	});
 
 	it('rejects non-numeric fromBlock', async () => {

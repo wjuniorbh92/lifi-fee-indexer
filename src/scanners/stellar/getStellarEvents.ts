@@ -47,6 +47,9 @@ export async function getStellarEvents(
 			if (event.ledger > toLedger) {
 				return { events: allEvents, cursor: lastCursor };
 			}
+			if (event.ledger < fromLedger) {
+				continue;
+			}
 			allEvents.push(event);
 			lastCursor = event.pagingToken;
 		}
@@ -56,6 +59,9 @@ export async function getStellarEvents(
 		}
 
 		currentCursor = response.cursor;
+		if (!currentCursor) {
+			break;
+		}
 	}
 
 	return { events: allEvents, cursor: lastCursor };

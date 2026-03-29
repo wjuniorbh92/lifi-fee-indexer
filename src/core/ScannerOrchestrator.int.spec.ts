@@ -6,6 +6,12 @@ import { FeeEventModel } from '../models/FeeEvent.js';
 import { SyncStateModel } from '../models/SyncState.js';
 import { SyncStateManager } from './SyncStateManager.js';
 
+const MOCK_EVM_BLOCK = 78600100;
+const MOCK_EVM_START = 78600000;
+const MOCK_EVM_BLOCK_2 = 78600200;
+const MOCK_STELLAR_LEDGER = 500100;
+const MOCK_STELLAR_LEDGER_2 = 500200;
+
 let mongo: MongoMemoryServer;
 
 beforeAll(async () => {
@@ -39,14 +45,14 @@ function makeEvent(block: number, logIndex = 0): NormalizedEvent {
 
 describe('ScannerOrchestrator integration', () => {
 	it('persists sync state and resumes from lastSyncedBlock + 1', async () => {
-		await SyncStateManager.save('polygon', 78600100, undefined);
+		await SyncStateManager.save('polygon', MOCK_EVM_BLOCK, undefined);
 
-		const fromBlock = await SyncStateManager.loadOrCreate('polygon', 78600000);
-		expect(fromBlock).toBe(78600101);
+		const fromBlock = await SyncStateManager.loadOrCreate('polygon', MOCK_EVM_START);
+		expect(fromBlock).toBe(MOCK_EVM_BLOCK + 1);
 	});
 
 	it('deduplicates events via insertMany ordered: false', async () => {
-		const events = [makeEvent(78600100, 0), makeEvent(78600100, 1)];
+		const events = [makeEvent(MOCK_EVM_BLOCK, 0), makeEvent(MOCK_EVM_BLOCK, 1)];
 		await FeeEventModel.insertMany(events, { ordered: false });
 
 		// Insert same events again — should throw but not lose data
@@ -61,20 +67,20 @@ describe('ScannerOrchestrator integration', () => {
 	});
 
 	it('stores and retrieves stellar cursor', async () => {
-		await SyncStateManager.save('stellar-testnet', 500100, 'cursor-abc');
+		await SyncStateManager.save('stellar-testnet', MOCK_STELLAR_LEDGER, 'cursor-abc');
 
 		const cursor = await SyncStateManager.loadCursor('stellar-testnet');
 		expect(cursor).toBe('cursor-abc');
 	});
 
 	it('handles concurrent chain sync states independently', async () => {
-		await SyncStateManager.save('polygon', 78600200, undefined);
-		await SyncStateManager.save('stellar-testnet', 500200, 'cursor-xyz');
+		await SyncStateManager.save('polygon', MOCK_EVM_BLOCK_2, undefined);
+		await SyncStateManager.save('stellar-testnet', MOCK_STELLAR_LEDGER_2, 'cursor-xyz');
 
-		const polygonBlock = await SyncStateManager.loadOrCreate('polygon', 78600000);
+		const polygonBlock = await SyncStateManager.loadOrCreate('polygon', MOCK_EVM_START);
 		const stellarBlock = await SyncStateManager.loadOrCreate('stellar-testnet', 0);
 
-		expect(polygonBlock).toBe(78600201);
-		expect(stellarBlock).toBe(500201);
+		expect(polygonBlock).toBe(MOCK_EVM_BLOCK_2 + 1);
+		expect(stellarBlock).toBe(MOCK_STELLAR_LEDGER_2 + 1);
 	});
 });

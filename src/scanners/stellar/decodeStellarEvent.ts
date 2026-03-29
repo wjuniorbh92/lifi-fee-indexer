@@ -2,6 +2,8 @@ import { Address, type xdr } from '@stellar/stellar-sdk';
 import type { rpc } from '@stellar/stellar-sdk';
 import type { NormalizedEvent } from '../../config/types.js';
 
+const MIN_TOPIC_LENGTH = 3;
+
 /**
  * Decode a Stellar Soroban contract event into a NormalizedEvent.
  *
@@ -16,7 +18,7 @@ import type { NormalizedEvent } from '../../config/types.js';
 export function decodeStellarEvent(event: rpc.Api.EventResponse, chainId: string): NormalizedEvent {
 	const { topic, value, ledger, txHash, pagingToken, ledgerClosedAt } = event;
 
-	if (topic.length < 3) {
+	if (topic.length < MIN_TOPIC_LENGTH) {
 		throw new Error(`Unexpected topic length ${topic.length} in event ${pagingToken}`);
 	}
 
@@ -42,18 +44,19 @@ export function decodeStellarEvent(event: rpc.Api.EventResponse, chainId: string
 
 /**
  * Parse the event value as a Map of string → string(i128).
- * Handles both ScMap and ScVec encodings.
+ * Expects an ScMap encoding. Throws if the value is not a map.
  */
 function parseValueMap(scVal: xdr.ScVal): Map<string, string> {
-	const result = new Map<string, string>();
-
 	const map = scVal.map();
-	if (map) {
-		for (const entry of map) {
-			const key = entry.key().sym().toString();
-			const val = i128ToString(entry.val());
-			result.set(key, val);
-		}
+	if (!map) {
+		throw new Error('Expected ScMap value encoding but received a non-map ScVal');
+	}
+
+	const result = new Map<string, string>();
+	for (const entry of map) {
+		const key = entry.key().sym().toString();
+		const val = i128ToString(entry.val());
+		result.set(key, val);
 	}
 
 	return result;

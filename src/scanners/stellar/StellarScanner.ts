@@ -1,10 +1,8 @@
 import { rpc } from '@stellar/stellar-sdk';
 import type { ChainConfig, NormalizedEvent } from '../../config/types.js';
-import type { ScanBatchResultWithCursor } from '../types.js';
+import type { ChainScanner, ScanBatchResultWithCursor } from '../types.js';
 import { decodeStellarEvent } from './decodeStellarEvent.js';
 import { getStellarEvents } from './getStellarEvents.js';
-
-import type { ChainScanner } from '../types.js';
 
 export class StellarScanner implements ChainScanner {
 	readonly config: ChainConfig;
@@ -36,13 +34,9 @@ export class StellarScanner implements ChainScanner {
 			decodeStellarEvent(event, this.config.chainId),
 		);
 
-		if (page.cursor) {
-			this.cursor = page.cursor;
-		}
-
 		return {
 			events,
-			nextCursor: page.cursor || undefined,
+			nextCursor: page.cursor.length > 0 ? page.cursor : undefined,
 		};
 	}
 }

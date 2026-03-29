@@ -114,6 +114,10 @@ export async function runScanner(
 
 		try {
 			await SyncStateManager.save(chainId, toBlock, nextCursor);
+
+			if (nextCursor && 'setCursor' in scanner && typeof scanner.setCursor === 'function') {
+				scanner.setCursor(nextCursor);
+			}
 		} catch (err) {
 			chainLogger.error(
 				{ err, fromBlock, toBlock },

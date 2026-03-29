@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { FeeEventModel } from './FeeEvent.js';
 
+const MOCK_BLOCK_NUMBER = 78600100;
+
 let mongo: MongoMemoryServer;
 
 beforeAll(async () => {
@@ -22,7 +24,7 @@ beforeEach(async () => {
 function makeEvent(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		chainId: 'polygon',
-		blockNumber: 78600100,
+		blockNumber: MOCK_BLOCK_NUMBER,
 		transactionHash: '0xabc123',
 		logIndex: 0,
 		token: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
@@ -41,7 +43,7 @@ describe('FeeEvent integration', () => {
 		const found = await FeeEventModel.findOne({ chainId: 'polygon' }).lean();
 		expect(found).toMatchObject({
 			chainId: 'polygon',
-			blockNumber: 78600100,
+			blockNumber: MOCK_BLOCK_NUMBER,
 			integratorFee: '1000000',
 		});
 	});

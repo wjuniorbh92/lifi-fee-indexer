@@ -5,6 +5,9 @@ const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 1000;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
+const MAX_OFFSET = 100_000;
+const SORT_DESC = -1 as const;
+const SORT_ASC = 1 as const;
 
 interface EventsQuery {
 	integrator: string;
@@ -40,7 +43,7 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 			const { integrator, chainId, token, fromBlock, toBlock, limit, offset } = request.query;
 
 			const parsedLimit = clampLimit(limit);
-			const parsedOffset = offset ? Number(offset) : DEFAULT_OFFSET;
+			const parsedOffset = clampOffset(offset);
 
 			const filter: Record<string, unknown> = { integrator };
 
@@ -55,7 +58,7 @@ export const eventsRoute: FastifyPluginAsync = async (app) => {
 
 			const [data, total] = await Promise.all([
 				FeeEventModel.find(filter)
-					.sort({ blockNumber: -1 })
+					.sort({ blockNumber: SORT_DESC, transactionHash: SORT_ASC, logIndex: SORT_ASC })
 					.skip(parsedOffset)
 					.limit(parsedLimit)
 					.lean(),
@@ -79,5 +82,13 @@ function clampLimit(raw: string | undefined): number {
 	const n = Number(raw);
 	if (n < MIN_LIMIT) return MIN_LIMIT;
 	if (n > MAX_LIMIT) return MAX_LIMIT;
+	return n;
+}
+
+function clampOffset(raw: string | undefined): number {
+	if (!raw) return DEFAULT_OFFSET;
+	const n = Number(raw);
+	if (n < DEFAULT_OFFSET) return DEFAULT_OFFSET;
+	if (n > MAX_OFFSET) return MAX_OFFSET;
 	return n;
 }
