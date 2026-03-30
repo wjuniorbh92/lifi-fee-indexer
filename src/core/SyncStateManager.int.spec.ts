@@ -101,6 +101,21 @@ describe('SyncStateManager (integration)', () => {
     expect(stellarCursor).toBe('stellar-cursor');
   });
 
+  it('clears lastCursor when null is passed (testnet reset)', async () => {
+    await SyncStateManager.save('stellar-testnet', SAVED_BLOCK, 'cursor-abc');
+    const cursorBefore = await SyncStateManager.loadCursor('stellar-testnet');
+    expect(cursorBefore).toBe('cursor-abc');
+
+    await SyncStateManager.save(
+      'stellar-testnet',
+      SAVED_BLOCK + BLOCK_INCREMENT_SMALL,
+      null,
+    );
+
+    const cursorAfter = await SyncStateManager.loadCursor('stellar-testnet');
+    expect(cursorAfter).toBeUndefined();
+  });
+
   it('returns undefined cursor when no state exists', async () => {
     const cursor = await SyncStateManager.loadCursor('nonexistent');
     expect(cursor).toBeUndefined();
