@@ -29,6 +29,7 @@ Senior Backend Engineer take-home assignment.
 - `pnpm test` — run all tests
 - `pnpm test:unit` — unit tests only
 - `pnpm test:int` — integration tests only
+- `pnpm test:cov` — run tests with coverage report (80% threshold enforced)
 - `pnpm check` — biome lint + format check
 - `pnpm check:write` — biome auto-fix
 - `pnpm check:types` — tsc type check

@@ -8,16 +8,20 @@ const MONGO_DUPLICATE_KEY_CODE = 11000;
  * v6+ shape (`we.err.code`).
  */
 export function isBulkDuplicatesOnly(err: unknown): boolean {
-	if (err === null || typeof err !== 'object' || !('writeErrors' in err)) {
-		return false;
-	}
+  if (err === null || typeof err !== 'object' || !('writeErrors' in err)) {
+    return false;
+  }
 
-	const { writeErrors } = err as { writeErrors: unknown };
-	if (!Array.isArray(writeErrors) || writeErrors.length === 0) {
-		return false;
-	}
+  const { writeErrors } = err as { writeErrors: unknown };
+  if (!Array.isArray(writeErrors) || writeErrors.length === 0) {
+    return false;
+  }
 
-	return (writeErrors as Array<{ code?: number; err?: { code: number } }>).every(
-		(we) => we.code === MONGO_DUPLICATE_KEY_CODE || we.err?.code === MONGO_DUPLICATE_KEY_CODE,
-	);
+  return (
+    writeErrors as Array<{ code?: number; err?: { code: number } }>
+  ).every(
+    (we) =>
+      we.code === MONGO_DUPLICATE_KEY_CODE ||
+      we.err?.code === MONGO_DUPLICATE_KEY_CODE,
+  );
 }

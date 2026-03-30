@@ -314,6 +314,14 @@ pnpm check         # biome lint + format check
 pnpm check:types   # tsc type check
 ```
 
+### Coverage
+
+```bash
+pnpm test:cov      # run tests with coverage report
+```
+
+Coverage thresholds are enforced at **80%** (statements, branches, functions, lines). The `test:cov` script fails if any threshold is not met.
+
 ## Design Decisions
 
 | Choice | Why |

@@ -5,38 +5,47 @@ import { decodeStellarEvent } from './decodeStellarEvent.js';
 import { getStellarEvents } from './getStellarEvents.js';
 
 export class StellarScanner implements ChainScanner {
-	readonly config: ChainConfig;
-	private readonly server: rpc.Server;
-	private cursor: string | undefined;
+  readonly config: ChainConfig;
+  private readonly server: rpc.Server;
+  private cursor: string | undefined;
 
-	constructor(config: ChainConfig, server?: rpc.Server) {
-		this.config = config;
-		this.server = server ?? new rpc.Server(config.rpcUrl, { allowHttp: true });
-	}
+  constructor(config: ChainConfig, server?: rpc.Server) {
+    this.config = config;
+    this.server = server ?? new rpc.Server(config.rpcUrl, { allowHttp: true });
+  }
 
-	setCursor(cursor: string | undefined): void {
-		this.cursor = cursor;
-	}
+  setCursor(cursor: string | undefined): void {
+    this.cursor = cursor;
+  }
 
-	async getLatestPosition(): Promise<number> {
-		const ledger = await this.server.getLatestLedger();
-		return ledger.sequence;
-	}
+  async getLatestPosition(): Promise<number> {
+    const ledger = await this.server.getLatestLedger();
+    return ledger.sequence;
+  }
 
-	async getEvents(from: number, to: number): Promise<ScanBatchResultWithCursor> {
-		if (from > to) {
-			throw new RangeError(`Invalid ledger range: from (${from}) > to (${to})`);
-		}
+  async getEvents(
+    from: number,
+    to: number,
+  ): Promise<ScanBatchResultWithCursor> {
+    if (from > to) {
+      throw new RangeError(`Invalid ledger range: from (${from}) > to (${to})`);
+    }
 
-		const page = await getStellarEvents(this.server, this.config, from, to, this.cursor);
+    const page = await getStellarEvents(
+      this.server,
+      this.config,
+      from,
+      to,
+      this.cursor,
+    );
 
-		const events: NormalizedEvent[] = page.events
-			.map((event) => decodeStellarEvent(event, this.config.chainId))
-			.filter((e): e is NormalizedEvent => e !== undefined);
+    const events: NormalizedEvent[] = page.events
+      .map((event) => decodeStellarEvent(event, this.config.chainId))
+      .filter((e): e is NormalizedEvent => e !== undefined);
 
-		return {
-			events,
-			nextCursor: page.cursor.length > 0 ? page.cursor : undefined,
-		};
-	}
+    return {
+      events,
+      nextCursor: page.cursor.length > 0 ? page.cursor : undefined,
+    };
+  }
 }

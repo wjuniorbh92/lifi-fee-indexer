@@ -6,8 +6,11 @@ import { StrKey } from '@stellar/stellar-sdk';
  * EVM addresses (0x...) are stored lowercase.
  */
 export function normalizeAddress(address: string): string {
-	if (StrKey.isValidEd25519PublicKey(address) || StrKey.isValidContract(address)) {
-		return address.toUpperCase();
-	}
-	return address.toLowerCase();
+  if (
+    StrKey.isValidEd25519PublicKey(address) ||
+    StrKey.isValidContract(address)
+  ) {
+    return address.toUpperCase();
+  }
+  return address.toLowerCase();
 }

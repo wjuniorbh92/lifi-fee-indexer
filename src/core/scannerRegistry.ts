@@ -6,13 +6,16 @@ import type { ChainScanner } from '../scanners/types.js';
 
 /** Build a chainId → scanner map for on-demand event fetching. */
 export function buildScannerMap(env: Env): Map<string, ChainScanner> {
-	const configs = buildChainConfigs(env);
-	const map = new Map<string, ChainScanner>();
+  const configs = buildChainConfigs(env);
+  const map = new Map<string, ChainScanner>();
 
-	for (const config of configs) {
-		const scanner = config.type === 'stellar' ? new StellarScanner(config) : new EvmScanner(config);
-		map.set(config.chainId, scanner);
-	}
+  for (const config of configs) {
+    const scanner =
+      config.type === 'stellar'
+        ? new StellarScanner(config)
+        : new EvmScanner(config);
+    map.set(config.chainId, scanner);
+  }
 
-	return map;
+  return map;
 }

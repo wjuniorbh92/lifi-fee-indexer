@@ -4,8 +4,8 @@ import type { ChainConfig } from '../../config/types.js';
 const EVENTS_LIMIT = 100;
 
 export interface StellarEventsPage {
-	events: rpc.Api.EventResponse[];
-	cursor: string;
+  events: rpc.Api.EventResponse[];
+  cursor: string;
 }
 
 /**
@@ -14,53 +14,53 @@ export interface StellarEventsPage {
  * Returns events where ledger <= toLedger (manually filtered).
  */
 export async function getStellarEvents(
-	server: rpc.Server,
-	config: ChainConfig,
-	fromLedger: number,
-	toLedger: number,
-	cursor?: string,
+  server: rpc.Server,
+  config: ChainConfig,
+  fromLedger: number,
+  toLedger: number,
+  cursor?: string,
 ): Promise<StellarEventsPage> {
-	const allEvents: rpc.Api.EventResponse[] = [];
-	let currentCursor = cursor;
-	let lastCursor = currentCursor ?? '';
+  const allEvents: rpc.Api.EventResponse[] = [];
+  let currentCursor = cursor;
+  let lastCursor = currentCursor ?? '';
 
-	const filters: rpc.Api.EventFilter[] = [
-		{
-			type: 'contract',
-			contractIds: [config.contractAddress],
-		},
-	];
+  const filters: rpc.Api.EventFilter[] = [
+    {
+      type: 'contract',
+      contractIds: [config.contractAddress],
+    },
+  ];
 
-	while (true) {
-		// Stellar RPC: cursor and startLedger are mutually exclusive.
-		// When resuming, cursor takes precedence; startLedger is for initial fetch only.
-		const request: rpc.Api.GetEventsRequest = currentCursor
-			? { filters, cursor: currentCursor, limit: EVENTS_LIMIT }
-			: { filters, startLedger: fromLedger, limit: EVENTS_LIMIT };
+  while (true) {
+    // Stellar RPC: cursor and startLedger are mutually exclusive.
+    // When resuming, cursor takes precedence; startLedger is for initial fetch only.
+    const request: rpc.Api.GetEventsRequest = currentCursor
+      ? { filters, cursor: currentCursor, limit: EVENTS_LIMIT }
+      : { filters, startLedger: fromLedger, limit: EVENTS_LIMIT };
 
-		const response = await server.getEvents(request);
+    const response = await server.getEvents(request);
 
-		for (const event of response.events) {
-			if (event.ledger > toLedger) {
-				return { events: allEvents, cursor: lastCursor };
-			}
-			if (event.ledger < fromLedger) {
-				lastCursor = event.id;
-				continue;
-			}
-			allEvents.push(event);
-			lastCursor = event.id;
-		}
+    for (const event of response.events) {
+      if (event.ledger > toLedger) {
+        return { events: allEvents, cursor: lastCursor };
+      }
+      if (event.ledger < fromLedger) {
+        lastCursor = event.id;
+        continue;
+      }
+      allEvents.push(event);
+      lastCursor = event.id;
+    }
 
-		if (response.events.length < EVENTS_LIMIT) {
-			break;
-		}
+    if (response.events.length < EVENTS_LIMIT) {
+      break;
+    }
 
-		currentCursor = response.cursor;
-		if (!currentCursor) {
-			break;
-		}
-	}
+    currentCursor = response.cursor;
+    if (!currentCursor) {
+      break;
+    }
+  }
 
-	return { events: allEvents, cursor: lastCursor };
+  return { events: allEvents, cursor: lastCursor };
 }
