@@ -15,10 +15,10 @@ import {
 @index({ chainId: 1 }, { unique: true })
 export class SyncState {
   @prop({ required: true })
-  public chainId!: string;
+  public chainId: string = '';
 
   @prop({ required: true })
-  public lastSyncedBlock!: number;
+  public lastSyncedBlock: number = 0;
 
   @prop()
   public lastCursor?: string;

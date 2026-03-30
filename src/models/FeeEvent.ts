@@ -19,31 +19,31 @@ import {
 @index({ integrator: 1, blockNumber: -1, transactionHash: 1, logIndex: 1 })
 export class FeeEvent {
   @prop({ required: true })
-  public chainId!: string;
+  public chainId: string = '';
 
   @prop({ required: true })
-  public blockNumber!: number;
+  public blockNumber: number = 0;
 
   @prop({ required: true })
-  public transactionHash!: string;
+  public transactionHash: string = '';
 
   @prop({ required: true })
-  public logIndex!: number;
+  public logIndex: number = 0;
 
   @prop({ required: true })
-  public token!: string;
+  public token: string = '';
 
   @prop({ required: true })
-  public integrator!: string;
+  public integrator: string = '';
 
   @prop({ required: true })
-  public integratorFee!: string;
+  public integratorFee: string = '';
 
   @prop({ required: true })
-  public lifiFee!: string;
+  public lifiFee: string = '';
 
   @prop({ required: true })
-  public timestamp!: Date;
+  public timestamp: Date = new Date(0);
 }
 
 export const FeeEventModel = getModelForClass(FeeEvent);

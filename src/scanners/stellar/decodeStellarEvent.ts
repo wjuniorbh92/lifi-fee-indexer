@@ -4,6 +4,7 @@ import type { NormalizedEvent } from '../../config/types.js';
 import { normalizeAddress } from '../../utils/normalizeAddress.js';
 
 const NATIVE_TOKEN_ID = 'native';
+const MIN_TOPIC_LENGTH = 1;
 const MIN_FEE_TOPIC_LENGTH = 2;
 
 /**
@@ -27,6 +28,10 @@ export function decodeStellarEvent(
 ): NormalizedEvent | undefined {
   const { topic, value, ledger, txHash, id, ledgerClosedAt, contractId } =
     event;
+
+  if (topic.length < MIN_TOPIC_LENGTH) {
+    return undefined;
+  }
 
   const eventName = scValToNative(topic[0]) as string;
 

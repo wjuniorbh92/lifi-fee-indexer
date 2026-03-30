@@ -20,11 +20,16 @@ describe('gracefulShutdown', () => {
     './gracefulShutdown.js',
   )['isShutdownRequested'];
 
+  let sigtermListeners: NodeJS.SignalsListener[];
+  let sigintListeners: NodeJS.SignalsListener[];
+
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.resetModules();
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    sigtermListeners = process.listeners('SIGTERM') as NodeJS.SignalsListener[];
+    sigintListeners = process.listeners('SIGINT') as NodeJS.SignalsListener[];
     const mod = await import('./gracefulShutdown.js');
     initShutdownHandler = mod.initShutdownHandler;
     registerShutdownHandler = mod.registerShutdownHandler;
@@ -33,8 +38,12 @@ describe('gracefulShutdown', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    process.removeAllListeners('SIGTERM');
-    process.removeAllListeners('SIGINT');
+    for (const l of process.listeners('SIGTERM') as NodeJS.SignalsListener[]) {
+      if (!sigtermListeners.includes(l)) process.removeListener('SIGTERM', l);
+    }
+    for (const l of process.listeners('SIGINT') as NodeJS.SignalsListener[]) {
+      if (!sigintListeners.includes(l)) process.removeListener('SIGINT', l);
+    }
   });
 
   it('isShutdownRequested returns false initially', () => {

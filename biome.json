@@ -18,6 +18,18 @@
       "trailingCommas": "all"
     }
   },
+  "overrides": [
+    {
+      "include": ["src/models/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noInferrableTypes": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "ignore": ["node_modules", "dist", "coverage", ".env*", ".claude"]
   }

@@ -44,6 +44,7 @@ const MOCK_EVENT: NormalizedEvent = {
 
 function createMockScanner(
   getEventsResult: ScanBatchResult = [MOCK_EVENT],
+  configOverrides: Partial<ChainConfig> = {},
 ): ChainScanner {
   return {
     config: {
@@ -55,6 +56,7 @@ function createMockScanner(
       batchSize: 2000,
       confirmations: 64,
       type: 'evm',
+      ...configOverrides,
     } satisfies ChainConfig,
     getLatestPosition: vi.fn().mockResolvedValue(99999999),
     getEvents: vi.fn().mockResolvedValue(getEventsResult),
@@ -106,15 +108,16 @@ describe('POST /events/fetch', () => {
 
   it('handles Stellar cursor-based response shape', async () => {
     const stellarEvent = { ...MOCK_EVENT, chainId: 'stellar-testnet' };
-    const scanner = createMockScanner({
-      events: [stellarEvent],
-      nextCursor: 'abc123',
-    });
-    scanner.config = {
-      ...scanner.config,
-      chainId: 'stellar-testnet',
-      type: 'stellar',
-    };
+    const scanner = createMockScanner(
+      {
+        events: [stellarEvent],
+        nextCursor: 'abc123',
+      },
+      {
+        chainId: 'stellar-testnet',
+        type: 'stellar',
+      },
+    );
     const scanners = new Map([['stellar-testnet', scanner]]);
     mockInsertMany.mockResolvedValueOnce([stellarEvent]);
 
