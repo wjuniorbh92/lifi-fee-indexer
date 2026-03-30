@@ -23,16 +23,15 @@ export const SyncStateManager = {
       chainId,
       lastSyncedBlock,
     };
+    const updateOp: Record<string, unknown> = { $set: update };
     if (lastCursor !== undefined) {
       update.lastCursor = lastCursor;
+    } else {
+      updateOp.$unset = { lastCursor: '' };
     }
-    await SyncStateModel.findOneAndUpdate(
-      { chainId },
-      { $set: update },
-      {
-        upsert: true,
-        new: true,
-      },
-    );
+    await SyncStateModel.findOneAndUpdate({ chainId }, updateOp, {
+      upsert: true,
+      new: true,
+    });
   },
 };

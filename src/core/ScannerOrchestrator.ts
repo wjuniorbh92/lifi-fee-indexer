@@ -75,9 +75,20 @@ export async function runScanner(
           { fromBlock, latestSafe },
           'Chain position is behind cursor — possible testnet reset, resetting sync state',
         );
-        await SyncStateManager.save(chainId, latestSafe, undefined);
-        if ('setCursor' in scanner && typeof scanner.setCursor === 'function') {
-          scanner.setCursor(undefined);
+        try {
+          await SyncStateManager.save(chainId, latestSafe, undefined);
+          if (
+            'setCursor' in scanner &&
+            typeof scanner.setCursor === 'function'
+          ) {
+            scanner.setCursor(undefined);
+          }
+        } catch (err) {
+          chainLogger.error(
+            { err, fromBlock, latestSafe },
+            'Failed to persist reset sync state — will retry',
+          );
+          await sleep(pollIntervalMs);
         }
         continue;
       }

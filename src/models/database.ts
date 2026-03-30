@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import type pino from 'pino';
 
+const SERVER_SELECTION_TIMEOUT_MS = 5000;
+const SOCKET_TIMEOUT_MS = 45_000;
+
 let listenersRegistered = false;
 let intentionalDisconnect = false;
 
@@ -24,8 +27,8 @@ export async function connectDatabase(
   }
 
   await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS,
+    socketTimeoutMS: SOCKET_TIMEOUT_MS,
   });
 
   logger.info('MongoDB connected');

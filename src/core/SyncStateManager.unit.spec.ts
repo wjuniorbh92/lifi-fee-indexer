@@ -81,6 +81,7 @@ describe('SyncStateManager', () => {
           chainId: CHAIN_POLYGON,
           lastSyncedBlock: POLYGON_SAVE_BLOCK,
         },
+        $unset: { lastCursor: '' },
       },
       { upsert: true, new: true },
     );
