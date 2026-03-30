@@ -81,7 +81,6 @@ describe('SyncStateManager', () => {
           chainId: CHAIN_POLYGON,
           lastSyncedBlock: POLYGON_SAVE_BLOCK,
         },
-        $unset: { lastCursor: '' },
       },
       { upsert: true, new: true },
     );
@@ -104,6 +103,24 @@ describe('SyncStateManager', () => {
           lastSyncedBlock: STELLAR_SAVE_BLOCK,
           lastCursor: TEST_CURSOR_NEW,
         },
+      },
+      { upsert: true, new: true },
+    );
+  });
+
+  it('save clears lastCursor when null is passed', async () => {
+    mockFindOneAndUpdate.mockResolvedValue({});
+
+    await SyncStateManager.save(CHAIN_STELLAR, STELLAR_SAVE_BLOCK, null);
+
+    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      { chainId: CHAIN_STELLAR },
+      {
+        $set: {
+          chainId: CHAIN_STELLAR,
+          lastSyncedBlock: STELLAR_SAVE_BLOCK,
+        },
+        $unset: { lastCursor: '' },
       },
       { upsert: true, new: true },
     );

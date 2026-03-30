@@ -372,11 +372,11 @@ describe('ScannerOrchestrator', () => {
 
     await runScanner(scanner, MOCK_POLL_MS, createLogger());
 
-    // Should have reset sync state to the latest position
+    // Should have reset sync state to the latest position (null clears stale cursor)
     expect(mockSave).toHaveBeenCalledWith(
       CHAIN_STELLAR,
       MOCK_LATEST_RESET,
-      undefined,
+      null,
     );
     // Should have cleared the cursor
     expect(mockSetCursor).toHaveBeenCalledWith(undefined);

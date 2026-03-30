@@ -17,7 +17,7 @@ export const SyncStateManager = {
   async save(
     chainId: string,
     lastSyncedBlock: number,
-    lastCursor: string | undefined,
+    lastCursor: string | null | undefined,
   ): Promise<void> {
     const update: Record<string, unknown> = {
       chainId,
@@ -25,10 +25,14 @@ export const SyncStateManager = {
     };
     const updateOp: Record<string, unknown> = { $set: update };
     if (lastCursor !== undefined) {
-      update.lastCursor = lastCursor;
-    } else {
-      updateOp.$unset = { lastCursor: '' };
+      if (lastCursor === null) {
+        // Explicitly clear stale cursor (e.g. after testnet reset)
+        updateOp.$unset = { lastCursor: '' };
+      } else {
+        update.lastCursor = lastCursor;
+      }
     }
+    // When lastCursor is undefined, don't touch the field
     await SyncStateModel.findOneAndUpdate({ chainId }, updateOp, {
       upsert: true,
       new: true,

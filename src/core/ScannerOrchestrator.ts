@@ -76,7 +76,7 @@ export async function runScanner(
           'Chain position is behind cursor — possible testnet reset, resetting sync state',
         );
         try {
-          await SyncStateManager.save(chainId, latestSafe, undefined);
+          await SyncStateManager.save(chainId, latestSafe, null);
           if (
             'setCursor' in scanner &&
             typeof scanner.setCursor === 'function'
