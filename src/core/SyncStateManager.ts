@@ -1,10 +1,12 @@
 import { SyncStateModel } from '../models/SyncState.js';
 
+const NEXT_BLOCK_OFFSET = 1;
+
 export const SyncStateManager = {
   async loadOrCreate(chainId: string, startBlock: number): Promise<number> {
     const state = await SyncStateModel.findOne({ chainId }).lean();
     if (!state) return startBlock;
-    return state.lastSyncedBlock + 1;
+    return state.lastSyncedBlock + NEXT_BLOCK_OFFSET;
   },
 
   async loadCursor(chainId: string): Promise<string | undefined> {

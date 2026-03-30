@@ -5,6 +5,9 @@ const NOT_FOUND_STRIKE_LIMIT = 5;
 const BAN_DURATION_MS = 600_000; // 10 minutes
 const STRIKE_WINDOW_MS = 60_000; // 1 minute window for counting strikes
 const CLEANUP_INTERVAL_MS = 300_000; // clean stale entries every 5 minutes
+const FORBIDDEN_STATUS = 403;
+const FORBIDDEN_MESSAGE = 'Forbidden';
+const NOT_FOUND_STATUS = 404;
 
 interface StrikeRecord {
   count: number;
@@ -41,7 +44,12 @@ export function createBotBanHook() {
     const record = strikes.get(ip);
 
     if (record && record.bannedUntil > Date.now()) {
-      sendError(reply, 403, 'Forbidden', ApiErrorCode.FORBIDDEN);
+      sendError(
+        reply,
+        FORBIDDEN_STATUS,
+        FORBIDDEN_MESSAGE,
+        ApiErrorCode.FORBIDDEN,
+      );
       return;
     }
 
@@ -67,7 +75,12 @@ export function createBotBanHook() {
           { ip, strikes: record.count },
           'IP banned for repeated 404 hits',
         );
-        return sendError(reply, 403, 'Forbidden', ApiErrorCode.FORBIDDEN);
+        return sendError(
+          reply,
+          FORBIDDEN_STATUS,
+          FORBIDDEN_MESSAGE,
+          ApiErrorCode.FORBIDDEN,
+        );
       }
     } else {
       strikes.set(ip, {
@@ -79,7 +92,7 @@ export function createBotBanHook() {
 
     return sendError(
       reply,
-      404,
+      NOT_FOUND_STATUS,
       `Route ${request.method}:${request.url} not found`,
       ApiErrorCode.NOT_FOUND,
     );

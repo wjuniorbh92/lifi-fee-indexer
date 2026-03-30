@@ -1,4 +1,9 @@
 const DEFAULT_HISTOGRAM_BUCKETS = [0.01, 0.05, 0.1, 0.5, 1, 2.5, 5, 10, 30, 60];
+const BUCKET_SUFFIX = '_bucket';
+const SUM_SUFFIX = '_sum';
+const COUNT_SUFFIX = '_count';
+const POSITIVE_INFINITY_LABEL = '+Inf';
+const LINE_SEPARATOR = '\n';
 
 interface CounterEntry {
   value: number;
@@ -74,15 +79,17 @@ function serialize(): string {
   for (const [name, entries] of histograms) {
     for (const [key, entry] of entries) {
       for (const [bucket, count] of entry.buckets) {
-        lines.push(`${name}_bucket{${key},le="${bucket}"} ${count}`);
+        lines.push(`${name}${BUCKET_SUFFIX}{${key},le="${bucket}"} ${count}`);
       }
-      lines.push(`${name}_bucket{${key},le="+Inf"} ${entry.count}`);
-      lines.push(`${name}_sum{${key}} ${entry.sum}`);
-      lines.push(`${name}_count{${key}} ${entry.count}`);
+      lines.push(
+        `${name}${BUCKET_SUFFIX}{${key},le="${POSITIVE_INFINITY_LABEL}"} ${entry.count}`,
+      );
+      lines.push(`${name}${SUM_SUFFIX}{${key}} ${entry.sum}`);
+      lines.push(`${name}${COUNT_SUFFIX}{${key}} ${entry.count}`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join(LINE_SEPARATOR);
 }
 
 function reset(): void {

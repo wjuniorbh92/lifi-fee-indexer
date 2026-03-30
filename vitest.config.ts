@@ -1,6 +1,8 @@
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
+const COVERAGE_THRESHOLD = 80;
+
 export default defineConfig({
   plugins: [
     swc.vite({
@@ -37,10 +39,10 @@ export default defineConfig({
         'src/scanners/types.ts',
       ],
       thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
+        statements: COVERAGE_THRESHOLD,
+        branches: COVERAGE_THRESHOLD,
+        functions: COVERAGE_THRESHOLD,
+        lines: COVERAGE_THRESHOLD,
       },
     },
   },

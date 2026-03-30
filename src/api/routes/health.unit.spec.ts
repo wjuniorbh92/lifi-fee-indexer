@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { STALENESS_MULTIPLIER } from './health.js';
 
 const POLL_INTERVAL_MS = 10_000;
+const TEST_SYNCED_BLOCK = 100;
+const TEST_SYNCED_BLOCK_ALT = 50;
+const HTTP_OK = 200;
+const HTTP_SERVICE_UNAVAILABLE = 503;
 
 const { mockFind, mockIsDatabaseConnected } = vi.hoisted(() => {
   const mockLean = vi.fn();
@@ -38,7 +42,7 @@ describe('GET /health', () => {
       lean: vi.fn().mockResolvedValue([
         {
           chainId: 'polygon',
-          lastSyncedBlock: 100,
+          lastSyncedBlock: TEST_SYNCED_BLOCK,
           updatedAt: recentDate(),
         },
       ]),
@@ -48,7 +52,7 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     const body = JSON.parse(res.body);
 
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(HTTP_OK);
     expect(body.status).toBe('ok');
     expect(body.database).toBe('connected');
     expect(body.chains[0].status).toBe('syncing');
@@ -60,7 +64,7 @@ describe('GET /health', () => {
       lean: vi.fn().mockResolvedValue([
         {
           chainId: 'polygon',
-          lastSyncedBlock: 100,
+          lastSyncedBlock: TEST_SYNCED_BLOCK,
           updatedAt: staleDate(),
         },
       ]),
@@ -70,7 +74,7 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     const body = JSON.parse(res.body);
 
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(HTTP_OK);
     expect(body.status).toBe('degraded');
     expect(body.chains[0].status).toBe('stale');
   });
@@ -82,7 +86,7 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     const body = JSON.parse(res.body);
 
-    expect(res.statusCode).toBe(503);
+    expect(res.statusCode).toBe(HTTP_SERVICE_UNAVAILABLE);
     expect(body.status).toBe('error');
     expect(body.database).toBe('disconnected');
     expect(body.chains).toEqual([]);
@@ -98,7 +102,7 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     const body = JSON.parse(res.body);
 
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(HTTP_OK);
     expect(body.status).toBe('ok');
     expect(body.chains).toEqual([]);
   });
@@ -109,7 +113,7 @@ describe('GET /health', () => {
       lean: vi.fn().mockResolvedValue([
         {
           chainId: 'stellar-testnet',
-          lastSyncedBlock: 50,
+          lastSyncedBlock: TEST_SYNCED_BLOCK_ALT,
         },
       ]),
     });
@@ -118,7 +122,7 @@ describe('GET /health', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     const body = JSON.parse(res.body);
 
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(HTTP_OK);
     expect(body.status).toBe('degraded');
     expect(body.chains[0].status).toBe('stale');
   });

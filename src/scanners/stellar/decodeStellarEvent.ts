@@ -4,6 +4,9 @@ import type { NormalizedEvent } from '../../config/types.js';
 import { normalizeAddress } from '../../utils/normalizeAddress.js';
 
 const NATIVE_TOKEN_ID = 'native';
+const EVENT_FEE = 'fee';
+const EVENT_TRANSFER = 'transfer';
+const DEFAULT_LIFI_FEE = '0';
 const MIN_TOPIC_LENGTH = 1;
 const MIN_FEE_TOPIC_LENGTH = 2;
 
@@ -35,7 +38,7 @@ export function decodeStellarEvent(
 
   const eventName = scValToNative(topic[0]) as string;
 
-  if (eventName === 'fee') {
+  if (eventName === EVENT_FEE) {
     return decodeFeeEvent(
       topic,
       value,
@@ -47,7 +50,7 @@ export function decodeStellarEvent(
     );
   }
 
-  if (eventName === 'transfer') {
+  if (eventName === EVENT_TRANSFER) {
     return decodeTransferEvent(
       topic,
       value,
@@ -99,7 +102,7 @@ function decodeFeeEvent(
     token: NATIVE_TOKEN_ID,
     integrator,
     integratorFee: amount,
-    lifiFee: '0',
+    lifiFee: DEFAULT_LIFI_FEE,
     timestamp: new Date(ledgerClosedAt),
   };
 }
@@ -141,7 +144,7 @@ function decodeTransferEvent(
     token,
     integrator: to,
     integratorFee: amount,
-    lifiFee: '0',
+    lifiFee: DEFAULT_LIFI_FEE,
     timestamp: new Date(ledgerClosedAt),
   };
 }
