@@ -9,7 +9,7 @@ Senior Backend Engineer take-home assignment.
 - **EVM**: viem v2 (not ethers — LI.FI standard)
 - **DB**: Typegoose v12 + Mongoose v8, BigInt as decimal strings
 - **API**: Fastify v5 + @fastify/rate-limit
-- **Stellar**: @stellar/stellar-sdk v13
+- **Stellar**: @stellar/stellar-sdk v14
 - **Validation**: Zod v3 for env config
 - **Test**: Vitest, co-located `*.unit.spec.ts` / `*.int.spec.ts`, mongodb-memory-server
 - **Lint/Format**: Biome (not ESLint/Prettier)
