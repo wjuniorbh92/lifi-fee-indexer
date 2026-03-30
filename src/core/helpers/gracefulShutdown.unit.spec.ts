@@ -1,117 +1,132 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockLogger = {
-	info: vi.fn(),
-	error: vi.fn(),
-	warn: vi.fn(),
-	debug: vi.fn(),
-	child: vi.fn().mockReturnThis(),
-	level: 'info',
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn(),
+  child: vi.fn().mockReturnThis(),
+  level: 'info',
 };
 
 describe('gracefulShutdown', () => {
-	let initShutdownHandler: typeof import('./gracefulShutdown.js')['initShutdownHandler'];
-	let registerShutdownHandler: typeof import('./gracefulShutdown.js')['registerShutdownHandler'];
-	let isShutdownRequested: typeof import('./gracefulShutdown.js')['isShutdownRequested'];
+  let initShutdownHandler: typeof import(
+    './gracefulShutdown.js',
+  )['initShutdownHandler'];
+  let registerShutdownHandler: typeof import(
+    './gracefulShutdown.js',
+  )['registerShutdownHandler'];
+  let isShutdownRequested: typeof import(
+    './gracefulShutdown.js',
+  )['isShutdownRequested'];
 
-	beforeEach(async () => {
-		vi.useFakeTimers();
-		vi.resetModules();
-		vi.restoreAllMocks();
-		vi.clearAllMocks();
-		const mod = await import('./gracefulShutdown.js');
-		initShutdownHandler = mod.initShutdownHandler;
-		registerShutdownHandler = mod.registerShutdownHandler;
-		isShutdownRequested = mod.isShutdownRequested;
-	});
+  let sigtermListeners: NodeJS.SignalsListener[];
+  let sigintListeners: NodeJS.SignalsListener[];
 
-	afterEach(() => {
-		vi.useRealTimers();
-		process.removeAllListeners('SIGTERM');
-		process.removeAllListeners('SIGINT');
-	});
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.resetModules();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    sigtermListeners = process.listeners('SIGTERM') as NodeJS.SignalsListener[];
+    sigintListeners = process.listeners('SIGINT') as NodeJS.SignalsListener[];
+    const mod = await import('./gracefulShutdown.js');
+    initShutdownHandler = mod.initShutdownHandler;
+    registerShutdownHandler = mod.registerShutdownHandler;
+    isShutdownRequested = mod.isShutdownRequested;
+  });
 
-	it('isShutdownRequested returns false initially', () => {
-		expect(isShutdownRequested()).toBe(false);
-	});
+  afterEach(() => {
+    vi.useRealTimers();
+    for (const l of process.listeners('SIGTERM') as NodeJS.SignalsListener[]) {
+      if (!sigtermListeners.includes(l)) process.removeListener('SIGTERM', l);
+    }
+    for (const l of process.listeners('SIGINT') as NodeJS.SignalsListener[]) {
+      if (!sigintListeners.includes(l)) process.removeListener('SIGINT', l);
+    }
+  });
 
-	it('sets shutdown flag when SIGTERM is emitted', async () => {
-		initShutdownHandler(mockLogger as never);
+  it('isShutdownRequested returns false initially', () => {
+    expect(isShutdownRequested()).toBe(false);
+  });
 
-		process.emit('SIGTERM');
-		await vi.runAllTimersAsync();
+  it('sets shutdown flag when SIGTERM is emitted', async () => {
+    initShutdownHandler(mockLogger as never);
 
-		expect(isShutdownRequested()).toBe(true);
-	});
+    process.emit('SIGTERM');
+    await vi.runAllTimersAsync();
 
-	it('sets shutdown flag when SIGINT is emitted', async () => {
-		initShutdownHandler(mockLogger as never);
+    expect(isShutdownRequested()).toBe(true);
+  });
 
-		process.emit('SIGINT');
-		await vi.runAllTimersAsync();
+  it('sets shutdown flag when SIGINT is emitted', async () => {
+    initShutdownHandler(mockLogger as never);
 
-		expect(isShutdownRequested()).toBe(true);
-	});
+    process.emit('SIGINT');
+    await vi.runAllTimersAsync();
 
-	it('runs cleanup handlers in LIFO order', async () => {
-		initShutdownHandler(mockLogger as never);
-		const callOrder: number[] = [];
+    expect(isShutdownRequested()).toBe(true);
+  });
 
-		registerShutdownHandler(async () => {
-			callOrder.push(1);
-		});
-		registerShutdownHandler(async () => {
-			callOrder.push(2);
-		});
-		registerShutdownHandler(async () => {
-			callOrder.push(3);
-		});
+  it('runs cleanup handlers in LIFO order', async () => {
+    initShutdownHandler(mockLogger as never);
+    const callOrder: number[] = [];
 
-		process.emit('SIGTERM');
-		await vi.runAllTimersAsync();
+    registerShutdownHandler(async () => {
+      callOrder.push(1);
+    });
+    registerShutdownHandler(async () => {
+      callOrder.push(2);
+    });
+    registerShutdownHandler(async () => {
+      callOrder.push(3);
+    });
 
-		expect(callOrder).toEqual([3, 2, 1]);
-	});
+    process.emit('SIGTERM');
+    await vi.runAllTimersAsync();
 
-	it('catches errors in cleanup handlers without aborting remaining handlers', async () => {
-		initShutdownHandler(mockLogger as never);
-		const callOrder: number[] = [];
+    expect(callOrder).toEqual([3, 2, 1]);
+  });
 
-		registerShutdownHandler(async () => {
-			callOrder.push(1);
-		});
-		registerShutdownHandler(async () => {
-			throw new Error('cleanup failed');
-		});
-		registerShutdownHandler(async () => {
-			callOrder.push(3);
-		});
+  it('catches errors in cleanup handlers without aborting remaining handlers', async () => {
+    initShutdownHandler(mockLogger as never);
+    const callOrder: number[] = [];
 
-		process.emit('SIGTERM');
-		await vi.runAllTimersAsync();
+    registerShutdownHandler(async () => {
+      callOrder.push(1);
+    });
+    registerShutdownHandler(async () => {
+      throw new Error('cleanup failed');
+    });
+    registerShutdownHandler(async () => {
+      callOrder.push(3);
+    });
 
-		expect(callOrder).toEqual([3, 1]);
-		expect(mockLogger.error).toHaveBeenCalled();
-	});
+    process.emit('SIGTERM');
+    await vi.runAllTimersAsync();
 
-	it('does not run cleanup twice on second signal', async () => {
-		initShutdownHandler(mockLogger as never);
-		let callCount = 0;
+    expect(callOrder).toEqual([3, 1]);
+    expect(mockLogger.error).toHaveBeenCalled();
+  });
 
-		registerShutdownHandler(async () => {
-			callCount++;
-		});
+  it('does not run cleanup twice on second signal', async () => {
+    initShutdownHandler(mockLogger as never);
+    let callCount = 0;
 
-		process.emit('SIGTERM');
-		await vi.runAllTimersAsync();
+    registerShutdownHandler(async () => {
+      callCount++;
+    });
 
-		// SIGTERM was registered with process.once, so it won't fire again.
-		// Emit SIGINT (the other registered signal) to exercise the
-		// isShuttingDown re-entry guard in runShutdown.
-		process.emit('SIGINT');
-		await vi.runAllTimersAsync();
+    process.emit('SIGTERM');
+    await vi.runAllTimersAsync();
 
-		expect(callCount).toBe(1);
-		expect(isShutdownRequested()).toBe(true);
-	});
+    // SIGTERM was registered with process.once, so it won't fire again.
+    // Emit SIGINT (the other registered signal) to exercise the
+    // isShuttingDown re-entry guard in runShutdown.
+    process.emit('SIGINT');
+    await vi.runAllTimersAsync();
+
+    expect(callCount).toBe(1);
+    expect(isShutdownRequested()).toBe(true);
+  });
 });

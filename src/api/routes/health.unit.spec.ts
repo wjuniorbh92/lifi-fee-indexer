@@ -2,124 +2,128 @@ import { describe, expect, it, vi } from 'vitest';
 import { STALENESS_MULTIPLIER } from './health.js';
 
 const POLL_INTERVAL_MS = 10_000;
+const TEST_SYNCED_BLOCK = 100;
+const TEST_SYNCED_BLOCK_ALT = 50;
+const HTTP_OK = 200;
+const HTTP_SERVICE_UNAVAILABLE = 503;
 
 const { mockFind, mockIsDatabaseConnected } = vi.hoisted(() => {
-	const mockLean = vi.fn();
-	const mockFind = vi.fn().mockReturnValue({ lean: mockLean });
-	const mockIsDatabaseConnected = vi.fn().mockReturnValue(true);
-	return { mockFind, mockLean, mockIsDatabaseConnected };
+  const mockLean = vi.fn();
+  const mockFind = vi.fn().mockReturnValue({ lean: mockLean });
+  const mockIsDatabaseConnected = vi.fn().mockReturnValue(true);
+  return { mockFind, mockLean, mockIsDatabaseConnected };
 });
 
 vi.mock('../../models/SyncState.js', () => ({
-	SyncStateModel: { find: mockFind },
+  SyncStateModel: { find: mockFind },
 }));
 
 vi.mock('../../models/database.js', () => ({
-	isDatabaseConnected: mockIsDatabaseConnected,
+  isDatabaseConnected: mockIsDatabaseConnected,
 }));
 
 async function buildApp(pollIntervalMs = POLL_INTERVAL_MS) {
-	const { buildServer } = await import('../server.js');
-	return buildServer({ pollIntervalMs });
+  const { buildServer } = await import('../server.js');
+  return buildServer({ pollIntervalMs });
 }
 
 function recentDate(): Date {
-	return new Date(Date.now() - POLL_INTERVAL_MS);
+  return new Date(Date.now() - POLL_INTERVAL_MS);
 }
 
 function staleDate(): Date {
-	return new Date(Date.now() - POLL_INTERVAL_MS * STALENESS_MULTIPLIER - 1000);
+  return new Date(Date.now() - POLL_INTERVAL_MS * STALENESS_MULTIPLIER - 1000);
 }
 
 describe('GET /health', () => {
-	it('returns ok when all chains are recently synced', async () => {
-		mockIsDatabaseConnected.mockReturnValue(true);
-		mockFind.mockReturnValue({
-			lean: vi.fn().mockResolvedValue([
-				{
-					chainId: 'polygon',
-					lastSyncedBlock: 100,
-					updatedAt: recentDate(),
-				},
-			]),
-		});
+  it('returns ok when all chains are recently synced', async () => {
+    mockIsDatabaseConnected.mockReturnValue(true);
+    mockFind.mockReturnValue({
+      lean: vi.fn().mockResolvedValue([
+        {
+          chainId: 'polygon',
+          lastSyncedBlock: TEST_SYNCED_BLOCK,
+          updatedAt: recentDate(),
+        },
+      ]),
+    });
 
-		const app = await buildApp();
-		const res = await app.inject({ method: 'GET', url: '/health' });
-		const body = JSON.parse(res.body);
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = JSON.parse(res.body);
 
-		expect(res.statusCode).toBe(200);
-		expect(body.status).toBe('ok');
-		expect(body.database).toBe('connected');
-		expect(body.chains[0].status).toBe('syncing');
-	});
+    expect(res.statusCode).toBe(HTTP_OK);
+    expect(body.status).toBe('ok');
+    expect(body.database).toBe('connected');
+    expect(body.chains[0].status).toBe('syncing');
+  });
 
-	it('returns degraded when a chain is stale', async () => {
-		mockIsDatabaseConnected.mockReturnValue(true);
-		mockFind.mockReturnValue({
-			lean: vi.fn().mockResolvedValue([
-				{
-					chainId: 'polygon',
-					lastSyncedBlock: 100,
-					updatedAt: staleDate(),
-				},
-			]),
-		});
+  it('returns degraded when a chain is stale', async () => {
+    mockIsDatabaseConnected.mockReturnValue(true);
+    mockFind.mockReturnValue({
+      lean: vi.fn().mockResolvedValue([
+        {
+          chainId: 'polygon',
+          lastSyncedBlock: TEST_SYNCED_BLOCK,
+          updatedAt: staleDate(),
+        },
+      ]),
+    });
 
-		const app = await buildApp();
-		const res = await app.inject({ method: 'GET', url: '/health' });
-		const body = JSON.parse(res.body);
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = JSON.parse(res.body);
 
-		expect(res.statusCode).toBe(200);
-		expect(body.status).toBe('degraded');
-		expect(body.chains[0].status).toBe('stale');
-	});
+    expect(res.statusCode).toBe(HTTP_OK);
+    expect(body.status).toBe('degraded');
+    expect(body.chains[0].status).toBe('stale');
+  });
 
-	it('returns error with 503 when DB is disconnected', async () => {
-		mockIsDatabaseConnected.mockReturnValue(false);
+  it('returns error with 503 when DB is disconnected', async () => {
+    mockIsDatabaseConnected.mockReturnValue(false);
 
-		const app = await buildApp();
-		const res = await app.inject({ method: 'GET', url: '/health' });
-		const body = JSON.parse(res.body);
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = JSON.parse(res.body);
 
-		expect(res.statusCode).toBe(503);
-		expect(body.status).toBe('error');
-		expect(body.database).toBe('disconnected');
-		expect(body.chains).toEqual([]);
-	});
+    expect(res.statusCode).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body.status).toBe('error');
+    expect(body.database).toBe('disconnected');
+    expect(body.chains).toEqual([]);
+  });
 
-	it('returns ok when DB is connected but no chains exist', async () => {
-		mockIsDatabaseConnected.mockReturnValue(true);
-		mockFind.mockReturnValue({
-			lean: vi.fn().mockResolvedValue([]),
-		});
+  it('returns ok when DB is connected but no chains exist', async () => {
+    mockIsDatabaseConnected.mockReturnValue(true);
+    mockFind.mockReturnValue({
+      lean: vi.fn().mockResolvedValue([]),
+    });
 
-		const app = await buildApp();
-		const res = await app.inject({ method: 'GET', url: '/health' });
-		const body = JSON.parse(res.body);
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = JSON.parse(res.body);
 
-		expect(res.statusCode).toBe(200);
-		expect(body.status).toBe('ok');
-		expect(body.chains).toEqual([]);
-	});
+    expect(res.statusCode).toBe(HTTP_OK);
+    expect(body.status).toBe('ok');
+    expect(body.chains).toEqual([]);
+  });
 
-	it('marks chain as stale when updatedAt is undefined (fail closed)', async () => {
-		mockIsDatabaseConnected.mockReturnValue(true);
-		mockFind.mockReturnValue({
-			lean: vi.fn().mockResolvedValue([
-				{
-					chainId: 'stellar-testnet',
-					lastSyncedBlock: 50,
-				},
-			]),
-		});
+  it('marks chain as stale when updatedAt is undefined (fail closed)', async () => {
+    mockIsDatabaseConnected.mockReturnValue(true);
+    mockFind.mockReturnValue({
+      lean: vi.fn().mockResolvedValue([
+        {
+          chainId: 'stellar-testnet',
+          lastSyncedBlock: TEST_SYNCED_BLOCK_ALT,
+        },
+      ]),
+    });
 
-		const app = await buildApp();
-		const res = await app.inject({ method: 'GET', url: '/health' });
-		const body = JSON.parse(res.body);
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = JSON.parse(res.body);
 
-		expect(res.statusCode).toBe(200);
-		expect(body.status).toBe('degraded');
-		expect(body.chains[0].status).toBe('stale');
-	});
+    expect(res.statusCode).toBe(HTTP_OK);
+    expect(body.status).toBe('degraded');
+    expect(body.chains[0].status).toBe('stale');
+  });
 });

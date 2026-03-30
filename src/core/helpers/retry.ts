@@ -6,10 +6,10 @@ const DEFAULT_MAX_DELAY_MS = 30_000;
 const JITTER_FACTOR = 0.1;
 
 interface RetryOptions {
-	maxRetries?: number;
-	baseDelayMs?: number;
-	maxDelayMs?: number;
-	retryOn?: (err: unknown) => boolean;
+  maxRetries?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  retryOn?: (err: unknown) => boolean;
 }
 
 /**
@@ -20,33 +20,36 @@ interface RetryOptions {
  * The `retryOn` predicate allows callers to only retry transient errors (e.g.
  * network timeouts, rate limits) while failing fast on permanent ones.
  */
-export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-	const {
-		maxRetries: rawMaxRetries = DEFAULT_MAX_RETRIES,
-		baseDelayMs = DEFAULT_BASE_DELAY_MS,
-		maxDelayMs = DEFAULT_MAX_DELAY_MS,
-		retryOn,
-	} = options;
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {},
+): Promise<T> {
+  const {
+    maxRetries: rawMaxRetries = DEFAULT_MAX_RETRIES,
+    baseDelayMs = DEFAULT_BASE_DELAY_MS,
+    maxDelayMs = DEFAULT_MAX_DELAY_MS,
+    retryOn,
+  } = options;
 
-	const maxRetries = Math.max(0, rawMaxRetries);
-	let lastError: unknown;
+  const maxRetries = Math.max(0, rawMaxRetries);
+  let lastError: unknown;
 
-	for (let attempt = 0; attempt <= maxRetries; attempt++) {
-		try {
-			return await fn();
-		} catch (err) {
-			lastError = err;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
 
-			if (attempt === maxRetries) break;
-			if (retryOn && !retryOn(err)) break;
+      if (attempt === maxRetries) break;
+      if (retryOn && !retryOn(err)) break;
 
-			const baseDelay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
-			const jitter = Math.random() * baseDelay * JITTER_FACTOR;
-			const delay = Math.floor(baseDelay + jitter);
+      const baseDelay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
+      const jitter = Math.random() * baseDelay * JITTER_FACTOR;
+      const delay = Math.floor(baseDelay + jitter);
 
-			await sleep(delay);
-		}
-	}
+      await sleep(delay);
+    }
+  }
 
-	throw lastError;
+  throw lastError;
 }
